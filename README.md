@@ -186,7 +186,7 @@ Use this workflow to manually validate that your GitHub Actions runner can succe
 - The file `trust-policy.json` contains sensitive, account-specific information and **is not tracked in version control** (see `.gitignore`).
 - To customize your AWS/GitHub OIDC integration, use the provided template: `trust-policy.example.json`.
 - During setup, the script will automatically generate a `trust-policy.json` file by replacing placeholders in the example with your actual AWS account ID, GitHub organization, and repository name.
-- **Never commit your real `trust-policy.json` to a public repository.**
+- **Never commit your real `trust-policy.json` to version control.**
 
 **Steps:**
 1. Edit `trust-policy.example.json` if you need to customize the trust policy structure.
@@ -204,9 +204,25 @@ Use this workflow to manually validate that your GitHub Actions runner can succe
 
 ---
 
-## 📝 User Stories & Traceability
+## 📂 Directory Structure
 
-User stories and a traceability matrix are maintained in `docs/user_stories.md` and `docs/traceability_matrix.md`.
+```
+.
+├── setup_oidc.sh
+├── trust-policy.example.json
+├── allowed_repos.txt
+├── .github/
+│   └── workflows/
+│       ├── lint.yml
+│       └── verify_oidc.yml
+├── docs/
+│   └── blog_post.md
+└── ...
+```
+
+- `allowed_repos.txt`: List of additional GitHub repositories (in `org/repo` format) that are permitted to assume the AWS IAM role via OIDC. Each line should contain one repository. If you only want to enable OIDC for the current repository, you do not need to edit this file.
+- `trust-policy.example.json`: Template for generating the trust policy used in AWS IAM. This file is used by `setup_oidc.sh` to create the actual `trust-policy.json` during setup. **Never commit your real `trust-policy.json` to version control.**
+- `docs/blog_post.md`: (Optional) Contains blog post or supplementary documentation.
 
 ---
 
@@ -214,25 +230,7 @@ User stories and a traceability matrix are maintained in `docs/user_stories.md` 
 
 1. Fork the repo and create your feature branch.
 2. Run [setup_oidc.sh](setup_oidc.sh) and ensure all workflows pass.
-3. Open a pull request and reference relevant user stories.
-
----
-
-## 📂 Directory Structure
-
-```
-.
-├── setup_oidc.sh
-├── trust-policy.json
-├── .github/
-│   └── workflows/
-│       ├── lint.yml
-│       └── verify_oidc.yml
-├── docs/
-│   ├── user_stories.md
-│   └── traceability_matrix.md
-└── ...
-```
+3. Open a pull request and reference relevant changes.
 
 ---
 
