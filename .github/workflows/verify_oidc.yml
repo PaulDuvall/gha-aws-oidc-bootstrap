@@ -1,0 +1,27 @@
+name: Verify OIDC Authentication
+
+on:
+  workflow_dispatch: # Only allow manual triggering
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # Required for OIDC
+      contents: read    # Required to checkout the repository
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
+        aws-region: us-east-1
+
+    - name: Verify AWS identity
+      run: |
+        echo "Verifying AWS identity..."
+        aws sts get-caller-identity
+        echo "OIDC authentication successful!"

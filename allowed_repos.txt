@@ -1,0 +1,4 @@
+# List each allowed GitHub repository (org/repo) on a separate line
+# Example:
+# YourOrg/repo-one
+# YourOrg/repo-two

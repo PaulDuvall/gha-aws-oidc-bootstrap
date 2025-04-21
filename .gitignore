@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyt
+*.env
+.env*
+*.egg-info/
+
+# Bash/Shell
+*.log
+*.bak
+*.swp
+*.swo
+*~
+
+# Project-specific
+trust-policy.json
