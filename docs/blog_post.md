@@ -141,10 +141,26 @@ The script:
 
 ## Step-by-Step Example
 
+The following steps walk you through setting up secure, automated OIDC authentication for one or more GitHub repositories using this project. You’ll see a generic example first, followed by a real-world example with concrete values.
+
 ### Deploy and Configure OIDC for Multiple Repos
+
+**Generic Example:**
+```bash
+bash setup_oidc.sh --github-org <ORG_NAME> --allowed-repos <repo1,repo2,...> --region <aws-region> --github-token <GITHUB_TOKEN>
+```
+- `<ORG_NAME>`: Your GitHub organization name
+- `<repo1,repo2,...>`: Comma-separated list of repository names (without org prefix)
+- `<aws-region>`: The AWS region for the IAM role (e.g., us-east-1)
+- `<GITHUB_TOKEN>`: A GitHub personal access token with the necessary permissions
+
+This command deploys the CloudFormation stack and configures the OIDC trust policy for all listed repositories, then sets the `GHA_OIDC_ROLE_ARN` variable in each repo.
+
+**Your Example:**
 ```bash
 bash setup_oidc.sh --github-org PaulDuvall --allowed-repos gha-aws-oidc-bootstrap,llm-guardian,owasp_llm_top10 --region us-east-1 --github-token <GITHUB_TOKEN>
 ```
+This command configures OIDC for the repositories `gha-aws-oidc-bootstrap`, `llm-guardian`, and `owasp_llm_top10` in the `PaulDuvall` organization, targeting the `us-east-1` region.
 
 ### Use the Role in a GitHub Actions Workflow
 ```yaml
@@ -155,6 +171,7 @@ bash setup_oidc.sh --github-org PaulDuvall --allowed-repos gha-aws-oidc-bootstra
     aws-region: us-east-1
     audience: sts.amazonaws.com
 ```
+This workflow step configures AWS credentials for your GitHub Actions job using the OIDC role you just set up. The `role-to-assume` references the variable that was automatically set in your repository by the setup script.
 
 ## References
 - [GitHub Actions OIDC](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect)
