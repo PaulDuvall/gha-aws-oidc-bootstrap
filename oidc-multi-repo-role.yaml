@@ -8,14 +8,11 @@ Parameters:
     Description: GitHub Organization name (case-sensitive, e.g., 'YourOrg')
   AllowedRepos:
     Type: CommaDelimitedList
-    Description: Comma-separated list of GitHub repository names (e.g., 'repo-one,repo-two')
+    Description: Comma-separated list of fully formatted GitHub repository patterns (e.g., 'repo:PaulDuvall/gha-aws-oidc-bootstrap:*,repo:PaulDuvall/gha-aws-oidc-bootstrap-2:*')
   RoleName:
     Type: String
     Default: github-oidc-multi-repo-role
     Description: Name for the IAM Role
-
-Conditions:
-  HasAllowedRepos: !Not [ !Equals [ !Ref AllowedRepos, '' ] ]
 
 Resources:
   GitHubOidcMultiRepoRole:
@@ -36,16 +33,7 @@ Resources:
                 token.actions.githubusercontent.com:sub:
                   Fn::Split:
                     - ","
-                    - !Join
-                      - ","
-                      - !If
-                        - HasAllowedRepos
-                        - !Map
-                          - &repo-pattern !Sub "repo:${GitHubOrg}/\${repo}:*"
-                          - !Split
-                            - ","
-                            - !Ref AllowedRepos
-                        - [ !Sub "repo:${GitHubOrg}/${AWS::StackName}:*" ]
+                    - !Join [ ",", !Ref AllowedRepos ]
       Path: /
       Description: "IAM Role for GitHub Actions OIDC integration supporting multiple repositories."
       ManagedPolicyArns: [] # Add managed policies as needed

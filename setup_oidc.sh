@@ -404,6 +404,17 @@ generate_trust_policy_from_template() {
   echo -e "${GREEN}Generated $output_file from $template_file.${NC}"
 }
 
+process_allowed_repos() {
+  local repos_string="$1"
+  local org="$2"
+  local patterns=()
+  IFS=',' read -ra repos <<< "$repos_string"
+  for repo in "${repos[@]}"; do
+    patterns+=("repo:${org}/${repo}:*")
+  done
+  IFS=','; echo "${patterns[*]}"
+}
+
 multi_repo_deploy() {
   if [[ -z "$GITHUB_ORG" ]]; then
     die "--github-org is required in multi-repo mode."
@@ -411,6 +422,7 @@ multi_repo_deploy() {
   if [[ -z "$ALLOWED_REPOS" ]]; then
     die "--allowed-repos is required in multi-repo mode."
   fi
+  ALLOWED_REPOS_PATTERNS=$(process_allowed_repos "$ALLOWED_REPOS" "$GITHUB_ORG")
   STACK_NAME="github-oidc-multi-repo"
   echo -e "${YELLOW}Deploying single-stack, multi-repo OIDC CloudFormation stack: $STACK_NAME${NC}"
   aws cloudformation deploy \
@@ -419,7 +431,7 @@ multi_repo_deploy() {
     --capabilities CAPABILITY_NAMED_IAM \
     --parameter-overrides \
       GitHubOrg="$GITHUB_ORG" \
-      AllowedRepos="$ALLOWED_REPOS" \
+      AllowedRepos="$ALLOWED_REPOS_PATTERNS" \
       RoleName=github-oidc-multi-repo-role
   ROLE_ARN=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='RoleArn'].OutputValue" --output text)
   ROLE_NAME="github-oidc-multi-repo-role"
