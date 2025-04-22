@@ -184,7 +184,11 @@ bash setup_oidc.sh --github-org PaulDuvall --allowed-repos gha-aws-oidc-bootstra
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:<org>/<repo>:*"
+          "token.actions.githubusercontent.com:sub": [
+            "repo:PaulDuvall/gha-aws-oidc-bootstrap:*",
+            "repo:PaulDuvall/llm-guardian:*",
+            "repo:PaulDuvall/owasp_llm_top10:*"
+          ]
         }
       }
     }
