@@ -14,7 +14,7 @@ declare REGION="us-east-1"
 declare GITHUB_ORG=""
 declare REPO_NAME="gha-aws-oidc-bootstrap"
 declare BRANCH_NAME="main"
-declare GITHUB_TOKEN=""
+declare GITHUB_TOKEN_ARG=""
 declare OIDC_PROVIDER_ARN=""
 declare TEMP_DIR=""
 declare CFN_TEMPLATE=""
@@ -30,12 +30,16 @@ declare MULTI_REPO_MODE=false
 
 die() {
   echo -e "${RED}$*${NC}" >&2
-  exit 1
+  usage
 }
 
 usage() {
   echo -e "${BOLD}Usage:${NC} $0 [options]"
-  echo -e "\nSets up AWS OIDC authentication for GitHub Actions"
+  echo -e "\nSets up AWS OIDC authentication for GitHub Actions."
+  echo -e "\n${BOLD}Current mode:${NC} This stack is configured to allow OIDC access for ALL repositories in your GitHub organization (e.g., PaulDuvall/*)."
+  echo -e "  You do NOT need to specify --allowed-repos or use allowed_repos.txt."
+  echo -e "\n${BOLD}Example usage:${NC}"
+  echo -e "  bash setup_oidc.sh --github-org PaulDuvall --region us-east-1 --github-token \"<YOUR_GITHUB_TOKEN>\"\n"
   echo -e "\n${BOLD}Options:${NC}"
   echo -e "  --region REGION            AWS region (default: us-east-1)"
   echo -e "  --github-org ORG_NAME      GitHub organization name (auto-detected if not provided)"
@@ -44,36 +48,28 @@ usage() {
   echo -e "  --github-token TOKEN       GitHub personal access token (required)"
   echo -e "                             Token must have 'repo' and 'admin:repo_hook' permissions"
   echo -e "  --oidc-provider-arn ARN    ARN of the existing GitHub OIDC provider (optional)"
-  echo -e "  --allowed-repos REPO1,REPO2  Comma-separated list of repo names (multi-repo mode, do NOT include org)"
   echo -e "  --help                     Display this help message"
   exit 1
 }
 
 parse_args() {
   while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --region)
-        REGION="$2"; shift 2;;
+    case $1 in
       --github-org)
         GITHUB_ORG="$2"; shift 2;;
-      --repo-name)
-        REPO_NAME="$2"; shift 2;;
-      --branch-name)
-        BRANCH_NAME="$2"; shift 2;;
+      --region)
+        REGION="$2"; shift 2;;
       --github-token)
-        GITHUB_TOKEN="$2"; shift 2;;
-      --oidc-provider-arn)
-        OIDC_PROVIDER_ARN="$2"; shift 2;;
-      --allowed-repos)
-        ALLOWED_REPOS="$2"; MULTI_REPO_MODE=true; shift 2;;
-      --help)
-        usage;;
+        GITHUB_TOKEN_ARG="$2"; shift 2;;
       *)
-        die "Unknown option: $1";;
+        echo "Unknown argument: $1"; exit 1;;
     esac
   done
-  if [[ -z "$GITHUB_TOKEN" ]]; then
-    echo -e "${RED}--github-token is required${NC}"; usage
+  if [[ -z "$GITHUB_ORG" ]]; then
+    echo -e "${RED}--github-org is required${NC}"; usage; exit 1;
+  fi
+  if [[ -z "$GITHUB_TOKEN_ARG" ]]; then
+    echo -e "${RED}--github-token is required${NC}"; usage; exit 1;
   fi
 }
 
@@ -94,24 +90,72 @@ detect_github_repo() {
   fi
 }
 
-prompt_for_github_token() {
-  SSM_PARAM_NAME="/${GITHUB_ORG}/gha-aws-oidc-bootstrap/GITHUB_TOKEN"
-  GITHUB_TOKEN=$(aws ssm get-parameter --name "$SSM_PARAM_NAME" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
-  if [[ -z "$GITHUB_TOKEN" ]]; then
-    echo -e "${YELLOW}You will be prompted to enter a GitHub personal access token with 'repo' and 'admin:repo_hook' scopes.${NC}"
-    local input1 input2
-    read -rsp $'Enter your GitHub personal access token: ' input1; echo
-    read -rsp $'Re-enter your token to confirm: ' input2; echo
-    if [[ -z "$input1" || "$input1" != "$input2" ]]; then
-      die "Tokens did not match or were blank. Exiting."
+set_github_variable() {
+  local org="$1"
+  local repo="$2"
+  local token="$3"
+  local role_arn="$4"
+  local var_name="GHA_OIDC_ROLE_ARN"
+
+  # Debug: Print token for diagnostics
+  echo "TOKEN_RAW=[$token]"
+  echo "$token" | od -c
+
+  # Step 1: Try to delete the variable if it exists
+  echo "DEBUG: Attempting to delete variable $var_name in $org/$repo before creation."
+  delete_github_variable "$org" "$repo" "$token" "$var_name"
+
+  # Step 2: Try to create the variable with POST
+  echo "DEBUG: Attempting to create variable $var_name in $org/$repo via POST."
+  response=$(curl -s -w "\n%{http_code}" -X POST \
+    -H "Accept: application/vnd.github+json" \
+    -H "Authorization: token $token" \
+    -H "Content-Type: application/json" \
+    "https://api.github.com/repos/$org/$repo/actions/variables" \
+    -d "{\"name\":\"$var_name\",\"value\":\"$role_arn\"}")
+  http_code=$(echo "$response" | tail -n 1)
+  body=$(echo "$response" | sed '$d')
+
+  if [[ "$http_code" == "201" ]]; then
+    echo "Successfully created variable $var_name in $org/$repo."
+    return 0
+  elif [[ "$http_code" == "409" ]]; then
+    echo "DEBUG: Variable already exists, attempting PATCH to update value."
+    patch_response=$(curl -s -w "\n%{http_code}" -X PATCH \
+      -H "Accept: application/vnd.github+json" \
+      -H "Authorization: token $token" \
+      -H "Content-Type: application/json" \
+      "https://api.github.com/repos/$org/$repo/actions/variables/$var_name" \
+      -d "{\"name\":\"$var_name\",\"value\":\"$role_arn\"}")
+    patch_http_code=$(echo "$patch_response" | tail -n 1)
+    patch_body=$(echo "$patch_response" | sed '$d')
+    if [[ "$patch_http_code" == "200" ]]; then
+      echo "Successfully updated variable $var_name in $org/$repo with PATCH."
+      return 0
+    else
+      echo "ERROR: PATCH failed for $var_name in $org/$repo. Response: $patch_body"
+      return 1
     fi
-    aws ssm put-parameter --name "$SSM_PARAM_NAME" --value "$input1" --type SecureString --overwrite
-    GITHUB_TOKEN=$(aws ssm get-parameter --name "$SSM_PARAM_NAME" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
-    if [[ -z "$GITHUB_TOKEN" ]]; then
-      die "Failed to store token in SSM. Please check your AWS CLI permissions and try again."
-    fi
-    echo -e "${GREEN}GitHub token successfully stored in SSM and loaded for use!${NC}"
+  else
+    echo "ERROR: Failed to create variable $var_name in $org/$repo. HTTP $http_code. Response: $body"
+    return 1
   fi
+}
+
+delete_github_variable() {
+  local org=$1
+  local repo=$2
+  local token=$3
+  local var_name=$4
+  local auth_scheme="token"
+  if [[ "$token" == github_pat_* || "$token" == gho_* || "$token" == ghu_* || "$token" == ghr_* ]]; then
+    auth_scheme="Bearer"
+  fi
+  echo "Deleting variable $var_name in $org/$repo if it exists..."
+  curl -s -X DELETE \
+    -H "Accept: application/vnd.github+json" \
+    -H "Authorization: $auth_scheme $token" \
+    "https://api.github.com/repos/$org/$repo/actions/variables/$var_name"
 }
 
 deploy_cloudformation_stack() {
@@ -120,7 +164,7 @@ deploy_cloudformation_stack() {
   echo -e "${YELLOW}Using stack name: $STACK_NAME${NC}"
   TEMP_DIR=$(mktemp -d)
   CFN_TEMPLATE="$TEMP_DIR/${REPO_NAME}-template.yaml"
-  cat > "$CFN_TEMPLATE" <<'EOF'
+  cat > "$CFN_TEMPLATE" <<EOF
 AWSTemplateFormatVersion: '2010-09-09'
 Description: 'GitHub Actions OIDC Integration for AWS Authentication'
 Parameters:
@@ -151,7 +195,7 @@ Resources:
         - 6938fd4d98bab03faadb97b34396831e3780aea1
       Tags:
         - Key: Project
-          Value: !Sub "${GitHubOrg}-${RepoName}"
+          Value: !Sub "${GITHUB_ORG}-${REPO_NAME}"
         - Key: ManagedBy
           Value: CloudFormation
         - Key: Environment
@@ -172,17 +216,17 @@ Resources:
                 token.actions.githubusercontent.com:aud: 'sts.amazonaws.com'
               StringLike:
                 token.actions.githubusercontent.com:sub:
-                  - !Sub 'repo:${GitHubOrg}/${RepoName}:*'
-                  - !Sub 'repo:${GitHubOrg}/${RepoName}:ref:*'
-                  - !Sub 'repo:${GitHubOrg}/${RepoName}:environment:*'
-                  - !Sub 'repo:${GitHubOrg}/${RepoName}:pull_request'
-                  - !Sub 'repo:${GitHubOrg}/${RepoName}:workflow:*'
-                  - !Sub 'repo:${GitHubOrg}/${RepoName}:branch:*'
+                  - !Sub 'repo:${GITHUB_ORG}/*'
+                  - !Sub 'repo:${GITHUB_ORG}/*:ref:*'
+                  - !Sub 'repo:${GITHUB_ORG}/*:environment:*'
+                  - !Sub 'repo:${GITHUB_ORG}/*:pull_request'
+                  - !Sub 'repo:${GITHUB_ORG}/*:workflow:*'
+                  - !Sub 'repo:${GITHUB_ORG}/*:branch:*'
       ManagedPolicyArns:
         - !Ref GitHubActionsPolicy
       Tags:
         - Key: Project
-          Value: !Sub "${GitHubOrg}-${RepoName}"
+          Value: !Sub "${GITHUB_ORG}-${REPO_NAME}"
         - Key: ManagedBy
           Value: CloudFormation
         - Key: Environment
@@ -190,7 +234,7 @@ Resources:
   GitHubActionsPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
-      Description: !Sub 'Policy for GitHub Actions OIDC integration with ${GitHubOrg}/${RepoName}'
+      Description: !Sub 'Policy for GitHub Actions OIDC integration with ${GITHUB_ORG}/${REPO_NAME}'
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -251,147 +295,70 @@ get_role_arn() {
   fi
 }
 
-delete_github_variable() {
-  local org=$1
-  local repo=$2
-  local token=$3
-  local var_name=$4
-  local auth_scheme="token"
-  if [[ "$token" == github_pat_* || "$token" == gho_* || "$token" == ghu_* || "$token" == ghr_* ]]; then
-    auth_scheme="Bearer"
+set_variable_allowed_repos() {
+  local org="$1"
+  local token="$2"
+  local role_arn="$3"
+  local repos
+  repos=( $(fetch_allowed_repos) )
+  if [[ ${#repos[@]} -eq 0 ]]; then
+    echo -e "${YELLOW}No repositories found in allowed_repos.txt. Skipping variable setup.${NC}"
+    return
   fi
-  echo "DEBUG: Deleting variable $var_name in $org/$repo if it exists..."
-  curl -s -X DELETE \
-    -H "Accept: application/vnd.github+json" \
-    -H "Authorization: $auth_scheme $token" \
-    "https://api.github.com/repos/$org/$repo/actions/variables/$var_name"
+  for repo_full in "${repos[@]}"; do
+    # Support both org/repo and just repo (assume org if missing)
+    if [[ "$repo_full" == */* ]]; then
+      org_name="${repo_full%%/*}"
+      repo_name="${repo_full##*/}"
+    else
+      org_name="$org"
+      repo_name="$repo_full"
+    fi
+    # Debug: Show constructed API URL and arguments
+    echo "DEBUG: set_github_variable org=[$org_name] repo=[$repo_name] token=[${token:0:5}...] role_arn=[$role_arn]"
+    echo "DEBUG: API URL=https://api.github.com/repos/$org_name/$repo_name/actions/variables"
+    set_github_variable "$org_name" "$repo_name" "$token" "$role_arn"
+  done
 }
 
-set_github_variable() {
-  local org=$1
-  local repo=$2
-  local token=$3
-  local role_arn=$4
-  local var_name="GHA_OIDC_ROLE_ARN"
-  # Delete before setting to ensure latest value
-  delete_github_variable "$org" "$repo" "$token" "$var_name"
-  # Debug output for token
-  echo "DEBUG: Using token prefix: ${token:0:5}... (length: ${#token})"
-  # Detect token type
-  local auth_scheme="token"
-  if [[ "$token" == github_pat_* || "$token" == gho_* || "$token" == ghu_* || "$token" == ghr_* ]]; then
-    auth_scheme="Bearer"
+fetch_allowed_repos() {
+  local allowed_file="allowed_repos.txt"
+  local repos=()
+  if [[ ! -f "$allowed_file" ]]; then
+    echo -e "${YELLOW}No allowed_repos.txt found. No repos will be processed.${NC}"
+    echo ""
+    return
   fi
-  echo "DEBUG: Using Authorization scheme: $auth_scheme"
-
-  # Minimal cURL test for token validity
-  echo "DEBUG: Testing token with user endpoint..."
-  curl -s -H "Authorization: $auth_scheme $token" https://api.github.com/user
-
-  # Print the full cURL command (with token partially masked)
-  local masked_token="${token:0:5}...${token: -5}"
-  echo "DEBUG: cURL command: curl -s -X POST -H 'Accept: application/vnd.github+json' -H 'Authorization: $auth_scheme $masked_token' 'https://api.github.com/repos/$org/$repo/actions/variables' -d '{\"name\":\"$var_name\",\"value\":\"$role_arn\"}'"
-
-  # Always try POST first
-  local post_response post_status patch_response
-  post_response=$(curl -s -w "\n%{http_code}" -X POST \
-    -H "Accept: application/vnd.github+json" \
-    -H "Authorization: $auth_scheme $token" \
-    "https://api.github.com/repos/$org/$repo/actions/variables" \
-    -d "{\"name\":\"$var_name\",\"value\":\"$role_arn\"}")
-  post_status=$(echo "$post_response" | tail -n1)
-  post_response_body=$(echo "$post_response" | sed '$d')
-
-  if [[ "$post_status" == "201" ]]; then
-    echo -e "${YELLOW}Create result:${NC} $post_response_body"
-  elif [[ "$post_status" == "422" ]]; then
-    # Variable already exists, try PATCH
-    patch_response=$(curl -s -X PATCH \
-      -H "Accept: application/vnd.github+json" \
-      -H "Authorization: $auth_scheme $token" \
-      "https://api.github.com/repos/$org/$repo/actions/variables/$var_name" \
-      -d "{\"name\":\"$var_name\",\"value\":\"$role_arn\"}")
-    echo -e "${YELLOW}Update result:${NC} $patch_response"
-  else
-    echo -e "${RED}Failed to create variable $var_name in $org/$repo. Status: $post_status. Response: $post_response_body${NC}"
-  fi
-
-  VERIFY_VARIABLE=$(curl -s -H "Authorization: $auth_scheme $token" \
-    "https://api.github.com/repos/$org/$repo/actions/variables/$var_name")
-  if [[ "$VERIFY_VARIABLE" == *"$var_name"* ]]; then
-    echo -e "${GREEN}Successfully set $var_name in $org/$repo${NC}"
-  else
-    echo -e "${RED}Failed to verify $var_name in $org/$repo. Please check manually.${NC}"
-  fi
+  while IFS= read -r line; do
+    # Skip comments and blank lines
+    [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+    # Extract repo name (support both org/repo and just repo)
+    repo_name=$(echo "$line" | xargs)
+    [[ -n "$repo_name" ]] && repos+=("$repo_name")
+  done < "$allowed_file"
+  echo "${repos[@]}"
 }
 
-read_allowed_repos() {
-  local allowed_repos_file="allowed_repos.txt"
-  local repo_patterns=()
-  # Always include the current repo detected by the script
-  local current_repo="${GITHUB_ORG}/${REPO_NAME}"
-  repo_patterns+=("repo:${current_repo}:*" "repo:${current_repo}:ref:*" "repo:${current_repo}:environment:*" "repo:${current_repo}:pull_request" "repo:${current_repo}:workflow:*" "repo:${current_repo}:branch:*")
-  if [[ -f "$allowed_repos_file" ]]; then
-    while IFS= read -r line; do
-      [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
-      # Skip duplicate of current repo
-      [[ "$line" == "$current_repo" ]] && continue
-      repo_patterns+=("repo:${line}:*" "repo:${line}:ref:*" "repo:${line}:environment:*" "repo:${line}:pull_request" "repo:${line}:workflow:*" "repo:${line}:branch:*")
-    done < "$allowed_repos_file"
-  fi
-  printf '%s\n' "${repo_patterns[@]}"
-}
-
-update_trust_policy() {
-  local role_name=$1 provider_arn=$2
-  echo -e "\n${BOLD}Updating trust policy for role:${NC} $role_name"
-  local temp_policy_file=$(mktemp)
-  local repo_patterns_json
-  # Build the JSON array for StringLike
-  local repo_patterns=( $(read_allowed_repos) )
-  repo_patterns_json=$(printf '"%s",' "${repo_patterns[@]}")
-  repo_patterns_json="${repo_patterns_json%,}"
-  cat > "$temp_policy_file" << EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Federated": "$provider_arn"
-      },
-      "Action": "sts:AssumeRoleWithWebIdentity",
-      "Condition": {
-        "StringEquals": {
-          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
-        },
-        "StringLike": {
-          "token.actions.githubusercontent.com:sub": [
-            $repo_patterns_json
-          ]
-        }
-      }
-    }
-  ]
-}
+print_github_actions_yaml() {
+  cat <<EOF
+  - name: Configure AWS credentials
+    uses: aws-actions/configure-aws-credentials@v2
+    with:
+      role-to-assume: \${{ vars.GHA_OIDC_ROLE_ARN }}
+      aws-region: $REGION
+      audience: sts.amazonaws.com
 EOF
-  cp "$temp_policy_file" "trust-policy.json"
-  echo -e "${YELLOW}Saved trust policy to trust-policy.json for reference${NC}"
-  aws iam update-assume-role-policy --role-name "$role_name" --policy-document file://"$temp_policy_file" --region "$REGION"
-  rm "$temp_policy_file"
-  echo -e "${GREEN}Successfully updated trust policy for role: $role_name${NC}"
-  echo -e "${GREEN}Trust policy now includes patterns from allowed_repos.txt${NC}"
 }
 
 generate_trust_policy_from_template() {
-  local template_file="trust-policy.example.json"
-  local output_file="trust-policy.json"
   local aws_account_id="$1"
   local github_org="$2"
   local repo_name="$3"
+  local template_file="trust-policy.example.json"
+  local output_file="trust-policy.json"
 
   if [[ ! -f "$template_file" ]]; then
-    echo -e "${RED}Template $template_file not found. Please ensure it exists in the project root.${NC}"
+    echo "Template $template_file not found. Please ensure it exists in the project root."
     exit 1
   fi
 
@@ -401,57 +368,18 @@ generate_trust_policy_from_template() {
     -e "s|<YOUR-REPO>|$repo_name|g" \
     "$template_file" > "$output_file"
 
-  echo -e "${GREEN}Generated $output_file from $template_file.${NC}"
+  echo "Generated $output_file from $template_file."
 }
 
-process_allowed_repos() {
-  local repos_string="$1"
-  local org="$2"
-  local patterns=()
-  IFS=',' read -ra repos <<< "$repos_string"
-  for repo in "${repos[@]}"; do
-    patterns+=("repo:${org}/${repo}:*")
-  done
-  IFS=','; echo "${patterns[*]}"
-}
-
-multi_repo_deploy() {
-  if [[ -z "$GITHUB_ORG" ]]; then
-    die "--github-org is required in multi-repo mode."
-  fi
-  if [[ -z "$ALLOWED_REPOS" ]]; then
-    die "--allowed-repos is required in multi-repo mode."
-  fi
-  ALLOWED_REPOS_PATTERNS=$(process_allowed_repos "$ALLOWED_REPOS" "$GITHUB_ORG")
-  STACK_NAME="github-oidc-multi-repo"
-  echo -e "${YELLOW}Deploying single-stack, multi-repo OIDC CloudFormation stack: $STACK_NAME${NC}"
-  aws cloudformation deploy \
-    --template-file oidc-multi-repo-role.yaml \
-    --stack-name "$STACK_NAME" \
-    --capabilities CAPABILITY_NAMED_IAM \
-    --parameter-overrides \
-      GitHubOrg="$GITHUB_ORG" \
-      AllowedRepos="$ALLOWED_REPOS_PATTERNS" \
-      RoleName=github-oidc-multi-repo-role
-  ROLE_ARN=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='RoleArn'].OutputValue" --output text)
-  ROLE_NAME="github-oidc-multi-repo-role"
-  echo -e "${GREEN}Successfully deployed multi-repo stack. Role ARN: $ROLE_ARN${NC}"
-
-  # Set AWS_ROLE_TO_ASSUME in each repo
-  IFS=',' read -ra REPOS <<< "$ALLOWED_REPOS"
-  for repo in "${REPOS[@]}"; do
-    set_github_variable "$GITHUB_ORG" "$repo" "$GITHUB_TOKEN" "$ROLE_ARN"
-  done
-
-  echo -e "\n${BOLD}To use this role in your GitHub Actions workflow:${NC}"
-  cat <<EOF
-- name: Configure AWS credentials
-  uses: aws-actions/configure-aws-credentials@v2
-  with:
-    role-to-assume: \${{ vars.GHA_OIDC_ROLE_ARN }}
-    aws-region: $REGION
-    audience: sts.amazonaws.com
-EOF
+update_trust_policy() {
+  local role_name=$1
+  local provider_arn=$2
+  echo -e "\nUpdating trust policy for role: $role_name"
+  local temp_policy_file=$(mktemp)
+  cp trust-policy.json "$temp_policy_file"
+  aws iam update-assume-role-policy --role-name "$role_name" --policy-document file://"$temp_policy_file" --region "$REGION"
+  rm "$temp_policy_file"
+  echo "Successfully updated trust policy for role: $role_name"
 }
 
 cleanup() {
@@ -465,57 +393,22 @@ main() {
     exit 0
   fi
   detect_github_repo
-  prompt_for_github_token
   AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
   deploy_cloudformation_stack
   get_role_arn
-  set_github_variable "$GITHUB_ORG" "$REPO_NAME" "$GITHUB_TOKEN" "$ROLE_ARN"
+  # Set the variable only in allowed repos from allowed_repos.txt
+  set_variable_allowed_repos "$GITHUB_ORG" "$GITHUB_TOKEN_ARG" "$ROLE_ARN"
   generate_trust_policy_from_template "$AWS_ACCOUNT_ID" "$GITHUB_ORG" "$REPO_NAME"
   update_trust_policy "$ROLE_NAME" "$OIDC_PROVIDER_ARN"
   cleanup
   echo -e "\n${GREEN}OIDC setup completed successfully!${NC}"
-  echo -e "${GREEN}Your GitHub Actions workflow can now authenticate with AWS using OIDC.${NC}"
-  echo -e "\n${YELLOW}Next steps:${NC}"
-  echo -e "1. Commit and push the changes to your GitHub repository"
-  echo -e "2. Run the GitHub Actions workflow manually to test the OIDC authentication"
-  echo -e "3. Check the workflow logs for any authentication errors"
-  if [[ "$HAD_ERRORS" == false && "$VARIABLE_SET" == true ]]; then
-    echo -e "\n${GREEN}${BOLD}✓ OIDC authentication setup complete!${NC}"
-    echo -e "\n${BOLD}To use OIDC authentication in your GitHub Actions workflow:${NC}"
-    cat <<EOF
-   - name: Configure AWS credentials
-     uses: aws-actions/configure-aws-credentials@v2
-     with:
-       role-to-assume: \${{ vars.GHA_OIDC_ROLE_ARN }}
-       aws-region: $REGION
-       audience: sts.amazonaws.com
-EOF
-    echo -e "\n${BOLD}Your GitHub Actions workflows can now securely authenticate with AWS!${NC}"
-  elif [[ "$VARIABLE_SET" == true && "$HAD_ERRORS" == true ]]; then
-    echo -e "\n${YELLOW}${BOLD}⚠ OIDC authentication setup completed with minor warnings.${NC}"
-    echo -e "${YELLOW}The GitHub variable was set successfully, but there were some warnings.${NC}"
-    echo -e "\n${BOLD}Your workflow should use:${NC}"
-    cat <<EOF
-   - name: Configure AWS credentials
-     uses: aws-actions/configure-aws-credentials@v2
-     with:
-       role-to-assume: \${{ vars.GHA_OIDC_ROLE_ARN }}
-       aws-region: $REGION
-       audience: sts.amazonaws.com
-EOF
-  else
-    echo -e "\n${YELLOW}${BOLD}⚠ OIDC authentication setup completed with issues.${NC}"
-    echo -e "${YELLOW}Please address the issues above before running your GitHub Actions workflow.${NC}"
-    echo -e "\n${BOLD}Once issues are resolved, your workflow should use:${NC}"
-    cat <<EOF
-   - name: Configure AWS credentials
-     uses: aws-actions/configure-aws-credentials@v2
-     with:
-       role-to-assume: \${{ vars.GHA_OIDC_ROLE_ARN }}
-       aws-region: $REGION
-       audience: sts.amazonaws.com
-EOF
-  fi
+  echo -e "\n${BOLD}Your GitHub Actions workflow can now authenticate with AWS using OIDC.${NC}"
+  echo -e "\n${BOLD}Next steps:${NC}"
+  echo "1. Commit and push the changes to your GitHub repository"
+  echo "2. Run the GitHub Actions workflow manually to test the OIDC authentication"
+  echo "3. Check the workflow logs for any authentication errors"
+  echo -e "\n${BOLD}Once issues are resolved, your workflow should use:${NC}"
+  print_github_actions_yaml
 }
 
 trap cleanup EXIT

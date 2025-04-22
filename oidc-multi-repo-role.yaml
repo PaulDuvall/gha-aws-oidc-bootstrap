@@ -30,10 +30,7 @@ Resources:
               StringEquals:
                 token.actions.githubusercontent.com:aud: 'sts.amazonaws.com'
               StringLike:
-                token.actions.githubusercontent.com:sub:
-                  Fn::Split:
-                    - ","
-                    - !Join [ ",", !Ref AllowedRepos ]
+                token.actions.githubusercontent.com:sub: !Sub 'repo:${GitHubOrg}/*'
       Path: /
       Description: "IAM Role for GitHub Actions OIDC integration supporting multiple repositories."
       ManagedPolicyArns: [] # Add managed policies as needed
