@@ -1,4 +1,4 @@
-# Securing CI/CD Pipelines with GitHub OIDC and AWS IAM: A Practical Guide
+# Securing CI/CD Pipelines with GitHub OIDC and AWS IAM
 
 Modern teams that embrace DevOps face a persistent challenge: how do you empower developers to deliver quickly and securely to AWS, without ever exposing static credentials or compromising security? The answer lies in automation, least privilege, and the right blend of open source tooling—principles that have guided the creation of the `gha-aws-oidc-bootstrap` project.
 
@@ -113,32 +113,41 @@ By configuring GitHub’s OIDC integration with AWS IAM roles, you:
 >
 > Never hardcode AWS credentials or store them as long‑lived secrets in your repositories. Hardcoded or static credentials are a leading cause of cloud breaches—they are easily leaked, rarely rotated, and often over‑permissioned. OIDC with IAM roles ensures every workflow run gets short‑lived, tightly‑scoped credentials, aligning with AWS and GitHub security best practices.
 
-## Automating Secure OIDC Integration for Multiple GitHub Repos with AWS
+## Automating Secure OIDC Integration for Multiple GitHub Repositories with AWS
 
-## Overview
-This post describes how to automate end-to-end OIDC authentication for multiple GitHub repositories using a single AWS CloudFormation stack and a robust Bash setup script.
+OpenID Connect (OIDC) is the modern, secure way to connect GitHub Actions workflows to AWS without long-lived credentials. But what if you want to enable OIDC authentication across several repositories in your organization, and you want the setup to be repeatable, robust, and easy for anyone to follow?
 
-## Key Improvements
-- **No Reserved Prefixes:** Uses `GHA_OIDC_ROLE_ARN` (not `GITHUB_...`) to avoid 422 errors.
-- **Idempotent Variable Management:** Deletes and re-creates the variable in each repo to ensure the latest value, using POST then PATCH if needed.
-- **Cross-Platform Support:** Works on both macOS and Linux by using portable `curl` and `sed` commands.
-- **Dynamic Trust Policy:** CloudFormation trust policy now uses the correct `repo:<org>/<repo>:*` OIDC subject format for all listed repos.
-- **Debugging & Security:** Script includes safe debug output and never exposes secrets.
+In this post, I’ll show you how to automate OIDC authentication for multiple GitHub repositories using a single AWS CloudFormation stack and a cross-platform Bash script. This approach minimizes manual steps, enforces best practices, and ensures every repository always has the correct configuration.
 
-## How It Works
-1. **CloudFormation Stack:**
-   - Deploys a role with a trust policy granting OIDC access to all specified repos.
-2. **Setup Script:**
-   - Cleans up old repo variables and sets the new IAM role ARN in each repo as `GHA_OIDC_ROLE_ARN`.
-   - Handles both classic and fine-grained GitHub tokens.
-   - Ensures variables are always up-to-date.
+## Why Automate OIDC Setup Across Multiple Repos?
 
-## Example Usage
+Manually configuring IAM roles and GitHub repository variables for each repo is tedious and error-prone. By automating the process, you:
+- Reduce the risk of misconfiguration
+- Make onboarding new repos trivial
+- Ensure all repos use the latest security settings
+- Save time as your organization and CI/CD footprint grows
+
+## How the Automation Works
+
+### 1. CloudFormation Stack
+A single stack creates an IAM role with a trust policy that allows OIDC authentication from all the GitHub repositories you specify. The trust policy uses the correct `repo:<org>/<repo>:*` subject format for each repository.
+
+### 2. Bash Setup Script
+The script:
+- Deletes the `GHA_OIDC_ROLE_ARN` variable in each repo (if it exists) before setting it
+- Uses the GitHub API to create the variable via POST, and PATCHes if it already exists
+- Works on macOS and Linux (portable `curl`/`sed` logic)
+- Handles both classic and fine-grained GitHub tokens
+- Prints debug output for each step (never exposing secrets)
+
+## Step-by-Step Example
+
+### Deploy and Configure OIDC for Multiple Repos
 ```bash
 bash setup_oidc.sh --github-org PaulDuvall --allowed-repos gha-aws-oidc-bootstrap,llm-guardian,owasp_llm_top10 --region us-east-1 --github-token <GITHUB_TOKEN>
 ```
 
-## Example Workflow
+### Use the Role in a GitHub Actions Workflow
 ```yaml
 - name: Configure AWS credentials
   uses: aws-actions/configure-aws-credentials@v2
@@ -149,10 +158,10 @@ bash setup_oidc.sh --github-org PaulDuvall --allowed-repos gha-aws-oidc-bootstra
 ```
 
 ## Lessons Learned
-- Always avoid reserved prefixes for GitHub variables.
-- Use POST then PATCH for robust variable management.
-- Make scripts cross-platform for reliability.
-- Keep trust policies as tight as possible for security.
+- Avoid reserved prefixes for GitHub variables (never use `GITHUB_`)
+- Use POST then PATCH for robust variable management
+- Make scripts cross-platform for reliability
+- Keep trust policies as tight as possible for security
 
 ## References
 - [GitHub Actions OIDC](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect)
