@@ -156,12 +156,6 @@ bash setup_oidc.sh --github-org PaulDuvall --allowed-repos gha-aws-oidc-bootstra
     audience: sts.amazonaws.com
 ```
 
-## Lessons Learned
-- Avoid reserved prefixes for GitHub variables (never use `GITHUB_`)
-- Use POST then PATCH for robust variable management
-- Make scripts cross-platform for reliability
-- Keep trust policies as tight as possible for security
-
 ## References
 - [GitHub Actions OIDC](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect)
 - [AWS OIDC Trust Policy](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html)
