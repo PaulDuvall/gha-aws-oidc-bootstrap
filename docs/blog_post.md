@@ -71,6 +71,7 @@ This command configures OIDC for the repositories `llm-guardian` and `owasp_llm_
 
 ### 4. Integrate into Your Workflows
 Reference the generated IAM role in your GitHub Actions workflow:
+
 ```yaml
 permissions:
   id-token: write
@@ -84,6 +85,10 @@ steps:
       audience: sts.amazonaws.com
 ```
 This workflow step configures AWS credentials for your GitHub Actions job using the OIDC role you just set up. The `role-to-assume` references the variable that was automatically set in your repository by the setup script.
+
+> **Example:** See [`verify_oidc.yml`](https://github.com/PaulDuvall/gha-aws-oidc-bootstrap/blob/main/.github/workflows/verify_oidc.yml) for a complete workflow using the generated IAM role.
+>
+> For more details, see the [`aws-actions/configure-aws-credentials`](https://github.com/aws-actions/configure-aws-credentials) action and [GitHub Actions OIDC with AWS](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-cloud-providers) documentation.
 
 ### Inspect the Trust or Permissions Policy
 
