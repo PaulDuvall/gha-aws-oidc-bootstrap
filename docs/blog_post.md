@@ -48,6 +48,8 @@ aws configure
 
 To run the OIDC setup script, you **must** provide all required arguments. Running `bash setup_oidc.sh` without arguments will not work for most use cases and will result in errors or incomplete configuration.
 
+> **Important:** Before running this step, review the [Using the Tool: GitHub Token Requirements](#using-the-tool-github-token-requirements) section below to ensure your GitHub token has the necessary scopes and permissions for all target repositories.
+
 **Generic Example:**
 ```bash
 bash setup_oidc.sh --github-org <ORG_NAME> --allowed-repos <repo1,repo2,...> --region <aws-region> --github-token <GITHUB_TOKEN>
