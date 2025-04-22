@@ -51,7 +51,6 @@ Setting up secure OIDC authentication between GitHub Actions and AWS involves se
 
 > **Note:**  
 > By default, only the current repository will be granted access. To allow additional GitHub repositories to assume the same IAM role, you can either pass them as a comma-separated list to the `--allowed-repos` argument when running the script, **or** add their names (in org/repo format, one per line) to the `allowed_repos.txt` file before running the automation. The script will generate the correct trust policy for all repos listed by either method. You do not need to use either option for single-repo setups.
-> **Caution:** Allowing multiple repositories to use the same IAM role means that any workflow in those repos can access the AWS resources permitted by that role, for the duration of the workflow run. While OIDC credentials are short-lived and tightly scoped, consider using a dedicated IAM role per repository for strict least-privilege and easier auditing.
 
 1. **Clone the Repository**
    ```bash
