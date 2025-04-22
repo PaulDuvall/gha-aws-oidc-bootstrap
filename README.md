@@ -375,3 +375,46 @@ bash setup_oidc.sh --github-org <ORG> --allowed-repos <repo1,repo2,...> --region
 - `allowed_repos.txt` is listed in `.gitignore` to prevent accidental commits of sensitive or environment-specific repo lists.
 - Use `allowed_repos.txt.example` as a template for onboarding or sharing project setup instructions.
 - The setup script and stack now fully support robust, multi-repo OIDC integration with dynamic trust policy generation.
+
+---
+
+## Customizing AWS Permissions with the `policies/` Directory
+
+This project uses the `policies/` directory to manage AWS IAM permissions for the OIDC role used by GitHub Actions workflows. This approach allows you to customize what AWS resources your workflows can access **without editing the main CloudFormation template**.
+
+### How it Works
+- Place one or more IAM policy JSON files (e.g., `lambda.json`, `s3-readonly.json`) in the `policies/` directory.
+- When you run `setup_oidc.sh`, the script automatically attaches all policy files in `policies/` to the IAM OIDC role.
+- Each policy file should define only AWS permissions (not GitHub repo logic). Repository access is controlled by the trust policy, not these files.
+
+### Customization Steps
+1. **Edit or add policy files** in `policies/` to grant or restrict AWS permissions as needed. For example:
+    - Grant Lambda permissions in `lambda.json`
+    - Grant S3 read-only access in `s3-readonly.json`
+    - Grant CloudWatch Logs access in `cloudwatch-logs.json`
+2. **Remove or archive policy files** you do not need (principle of least privilege).
+3. **Re-run `setup_oidc.sh`** after making any changes to apply the updated permissions to the IAM role.
+
+### Example: Adding Lambda Permissions
+To allow your workflows to invoke and update a Lambda function, use a `lambda.json` like:
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "lambda:InvokeFunction",
+        "lambda:UpdateFunctionCode",
+        "lambda:GetFunction"
+      ],
+      "Resource": "arn:aws:lambda:us-east-1:<your-account-id>:function:<your-function-name>"
+    }
+  ]
+}
+```
+
+### Best Practices
+- **Never scope policies to a single GitHub repository.**
+- Keep policies minimal and auditable.
+- Review `policies/README.md` for more details and examples.

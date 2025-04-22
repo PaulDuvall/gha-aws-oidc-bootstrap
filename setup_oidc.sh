@@ -351,24 +351,33 @@ EOF
 }
 
 generate_trust_policy_from_template() {
-  local aws_account_id="$1"
-  local github_org="$2"
-  local repo_name="$3"
-  local template_file="trust-policy.example.json"
-  local output_file="trust-policy.json"
+  local org="$1"
+  local provider_arn="$2"
+  local output_file="$3"
 
-  if [[ ! -f "$template_file" ]]; then
-    echo "Template $template_file not found. Please ensure it exists in the project root."
-    exit 1
-  fi
-
-  sed \
-    -e "s|<YOUR-AWS-ACCOUNT-ID>|$aws_account_id|g" \
-    -e "s|<YOUR-GITHUB-ORG>|$github_org|g" \
-    -e "s|<YOUR-REPO>|$repo_name|g" \
-    "$template_file" > "$output_file"
-
-  echo "Generated $output_file from $template_file."
+  cat > "$output_file" <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "$provider_arn"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+        },
+        "StringLike": {
+          "token.actions.githubusercontent.com:sub": "repo:${org}/*:*"
+        }
+      }
+    }
+  ]
+}
+EOF
+  echo "Generated trust-policy.json for all repos in org: $org"
 }
 
 update_trust_policy() {
@@ -380,6 +389,26 @@ update_trust_policy() {
   aws iam update-assume-role-policy --role-name "$role_name" --policy-document file://"$temp_policy_file" --region "$REGION"
   rm "$temp_policy_file"
   echo "Successfully updated trust policy for role: $role_name"
+}
+
+attach_inline_policies() {
+  local role_name="$1"
+  local policies_dir="policies"
+  if [[ -d "$policies_dir" ]]; then
+    for policy_file in "$policies_dir"/*.json; do
+      if [[ -f "$policy_file" ]]; then
+        policy_name=$(basename "$policy_file" .json)
+        echo "Attaching policy $policy_name from $policy_file to role $role_name..."
+        aws iam put-role-policy \
+          --role-name "$role_name" \
+          --policy-name "$policy_name" \
+          --policy-document "file://$policy_file" \
+          --region "$REGION"
+      fi
+    done
+  else
+    echo "No policies directory found. Skipping policy attachment."
+  fi
 }
 
 cleanup() {
@@ -396,10 +425,10 @@ main() {
   AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
   deploy_cloudformation_stack
   get_role_arn
-  # Set the variable only in allowed repos from allowed_repos.txt
   set_variable_allowed_repos "$GITHUB_ORG" "$GITHUB_TOKEN_ARG" "$ROLE_ARN"
-  generate_trust_policy_from_template "$AWS_ACCOUNT_ID" "$GITHUB_ORG" "$REPO_NAME"
+  generate_trust_policy_from_template "$GITHUB_ORG" "$OIDC_PROVIDER_ARN" "trust-policy.json"
   update_trust_policy "$ROLE_NAME" "$OIDC_PROVIDER_ARN"
+  attach_inline_policies "$ROLE_NAME"
   cleanup
   echo -e "\n${GREEN}OIDC setup completed successfully!${NC}"
   echo -e "\n${BOLD}Your GitHub Actions workflow can now authenticate with AWS using OIDC.${NC}"

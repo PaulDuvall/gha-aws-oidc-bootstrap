@@ -34,7 +34,7 @@ Resources:
       Path: /
       Description: "IAM Role for GitHub Actions OIDC integration supporting multiple repositories."
       ManagedPolicyArns: [] # Add managed policies as needed
-      Policies: [] # Add inline policies as needed
+      Policies: [] # Leave empty and use setup_oidc.sh to apply all inline policies from the policies/ directory after stack deployment
 
 Outputs:
   RoleArn:
