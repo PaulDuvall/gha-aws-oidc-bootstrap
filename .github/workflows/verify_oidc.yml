@@ -1,7 +1,10 @@
 name: Verify OIDC Authentication
 
 on:
-  workflow_dispatch: # Only allow manual triggering
+  push:
+    branches:
+      - '**'
+  workflow_dispatch:
 
 jobs:
   verify:
