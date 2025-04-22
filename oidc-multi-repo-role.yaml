@@ -33,8 +33,9 @@ Resources:
                 token.actions.githubusercontent.com:sub:
                   Fn::Split:
                     - ","
-                    - !Sub |
-                        repo:${GitHubOrg}/gha-aws-oidc-bootstrap:*,repo:${GitHubOrg}/llm-guardian:*,repo:${GitHubOrg}/owasp_llm_top10:*
+                    - !Join
+                      - ","
+                      - !Ref AllowedRepos
       Path: /
       Description: "IAM Role for GitHub Actions OIDC integration supporting multiple repositories."
       ManagedPolicyArns: [] # Add managed policies as needed
