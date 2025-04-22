@@ -83,7 +83,7 @@ Setting up secure OIDC authentication between GitHub Actions and AWS involves se
        - name: Configure AWS credentials
          uses: aws-actions/configure-aws-credentials@v2
          with:
-           role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
+           role-to-assume: ${{ vars.GHA_OIDC_ROLE_ARN }}
            aws-region: us-east-1
            audience: sts.amazonaws.com
      ```
