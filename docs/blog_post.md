@@ -50,6 +50,8 @@ To run the OIDC setup script, you **must** provide all required arguments. Runni
 
 > **Important:** Before running this step, review the [Using the Tool: GitHub Token Requirements](#using-the-tool-github-token-requirements) section below to ensure your GitHub token has the necessary scopes and permissions for all target repositories.
 
+> **Note:** The current repository is always included by default. You do **not** need to add it to `allowed_repos.txt` or the `--allowed-repos` argument—the script will automatically grant access to the repo where it is run. Only specify additional repositories if you want them to share the IAM role.
+
 **Generic Example:**
 ```bash
 bash setup_oidc.sh --github-org <ORG_NAME> --allowed-repos <repo1,repo2,...> --region <aws-region> --github-token <GITHUB_TOKEN>
@@ -63,20 +65,11 @@ This command deploys the CloudFormation stack and configures the OIDC trust poli
 
 **My Example:**
 ```bash
-bash setup_oidc.sh --github-org PaulDuvall --allowed-repos gha-aws-oidc-bootstrap,llm-guardian,owasp_llm_top10 --region us-east-1 --github-token <GITHUB_TOKEN>
+bash setup_oidc.sh --github-org PaulDuvall --allowed-repos llm-guardian,owasp_llm_top10 --region us-east-1 --github-token <GITHUB_TOKEN>
 ```
-This command configures OIDC for the repositories `gha-aws-oidc-bootstrap`, `llm-guardian`, and `owasp_llm_top10` in the `PaulDuvall` organization, targeting the `us-east-1` region.
+This command configures OIDC for the repositories `llm-guardian` and `owasp_llm_top10` in the `PaulDuvall` organization, targeting the `us-east-1` region.
 
-> **Note:** By default, only the current repository will be granted access. To allow additional GitHub repositories to assume the same IAM role, you can either pass them as a comma-separated list to the `--allowed-repos` argument when running the script, **or** add their names (in org/repo format, one per line) to the `allowed_repos.txt` file before running the automation. The script will generate the correct trust policy for all repos listed by either method. You do not need to use either option for single-repo setups.
-
-### 4. Commit and Push Changes
-```bash
-git add .
-git commit -m "chore: setup OIDC integration"
-git push
-```
-
-### 5. Integrate into Your Workflows
+### 4. Integrate into Your Workflows
 Reference the generated IAM role in your GitHub Actions workflow:
 ```yaml
 permissions:
