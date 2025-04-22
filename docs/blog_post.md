@@ -28,67 +28,67 @@ aws iam list-open-id-connect-providers
 ```
 This design means you never have to manage multiple OIDC providers for GitHub in the same account—simplifying configuration and reducing risk.
 
-## What the Automation Does for You (and How to Do It Manually)
-
-> **Note:**  
-> You do **not** need to perform the following manual steps if you use the automation described later in this guide. These steps are provided for context, so you understand what the automation is doing behind the scenes and what would be required if you set up OIDC authentication manually.
-
-Setting up secure OIDC authentication between GitHub Actions and AWS involves several detailed steps if done manually:
-
-1. **Create the OIDC Identity Provider in AWS IAM**
-   - Go to IAM > Identity providers > Add provider
-   - Choose OpenID Connect, enter `token.actions.githubusercontent.com` as the provider URL, and add the audience `sts.amazonaws.com`
-2. **Create and Maintain the IAM Role and Trust Policy**
-   - Create a new IAM Role
-   - Write and maintain a trust policy that allows GitHub Actions from your target repo to assume the role via OIDC (this requires updating the `sub` condition if you add or change repos)
-   - Attach a permissions policy granting only the required AWS actions (e.g., S3, CloudFormation)
-   - To allow multiple repos, add each repo pattern to the `sub` condition.
-   - With the automation, the current repo is always included by default, and you only need to add other repos to `allowed_repos.txt` if you want to grant them access.
-
----
-
 ## Step-by-Step: Automated Secure Setup and Usage
 
-> **Note:**  
-> By default, only the current repository will be granted access. To allow additional GitHub repositories to assume the same IAM role, you can either pass them as a comma-separated list to the `--allowed-repos` argument when running the script, **or** add their names (in org/repo format, one per line) to the `allowed_repos.txt` file before running the automation. The script will generate the correct trust policy for all repos listed by either method. You do not need to use either option for single-repo setups.
+The following steps walk you through setting up secure, automated OIDC authentication for one or more GitHub repositories using this project. You’ll see a generic example first, followed by a real-world example with concrete values.
 
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/PaulDuvall/gha-aws-oidc-bootstrap.git
-   cd gha-aws-oidc-bootstrap
-   ```
-2. **Configure AWS CLI Credentials**
-   ```bash
-   aws configure
-   # Ensure your credentials have IAM and CloudFormation permissions
-   ```
-3. **Run the OIDC Setup Script**
-   ```bash
-   bash setup_oidc.sh
-   # Follow interactive prompts for GitHub token and AWS region
-   ```
-4. **Commit and Push Changes**
-   ```bash
-   git add .
-   git commit -m "chore: setup OIDC integration"
-   git push
-   ```
-5. **Integrate into Your Workflows**
-   - Reference the generated IAM role in your GitHub Actions workflow:
-     ```yaml
-     permissions:
-       id-token: write
-       contents: read
-     steps:
-       - name: Configure AWS credentials
-         uses: aws-actions/configure-aws-credentials@v2
-         with:
-           role-to-assume: ${{ vars.GHA_OIDC_ROLE_ARN }}
-           aws-region: us-east-1
-           audience: sts.amazonaws.com
-     ```
+### 1. Clone the Repository
+```bash
+git clone https://github.com/PaulDuvall/gha-aws-oidc-bootstrap.git
+cd gha-aws-oidc-bootstrap
+```
 
----
+### 2. Configure AWS CLI Credentials
+```bash
+aws configure
+# Ensure your credentials have IAM and CloudFormation permissions
+```
+
+### 3. Deploy and Configure OIDC for Multiple Repos
+
+To run the OIDC setup script, you **must** provide all required arguments. Running `bash setup_oidc.sh` without arguments will not work for most use cases and will result in errors or incomplete configuration.
+
+**Generic Example:**
+```bash
+bash setup_oidc.sh --github-org <ORG_NAME> --allowed-repos <repo1,repo2,...> --region <aws-region> --github-token <GITHUB_TOKEN>
+```
+- `<ORG_NAME>`: Your GitHub organization name
+- `<repo1,repo2,...>`: Comma-separated list of repository names (without org prefix)
+- `<aws-region>`: The AWS region for the IAM role (e.g., us-east-1)
+- `<GITHUB_TOKEN>`: A GitHub personal access token with the necessary permissions
+
+This command deploys the CloudFormation stack and configures the OIDC trust policy for all listed repositories, then sets the `GHA_OIDC_ROLE_ARN` variable in each repo.
+
+**My Example:**
+```bash
+bash setup_oidc.sh --github-org PaulDuvall --allowed-repos gha-aws-oidc-bootstrap,llm-guardian,owasp_llm_top10 --region us-east-1 --github-token <GITHUB_TOKEN>
+```
+This command configures OIDC for the repositories `gha-aws-oidc-bootstrap`, `llm-guardian`, and `owasp_llm_top10` in the `PaulDuvall` organization, targeting the `us-east-1` region.
+
+> **Note:** By default, only the current repository will be granted access. To allow additional GitHub repositories to assume the same IAM role, you can either pass them as a comma-separated list to the `--allowed-repos` argument when running the script, **or** add their names (in org/repo format, one per line) to the `allowed_repos.txt` file before running the automation. The script will generate the correct trust policy for all repos listed by either method. You do not need to use either option for single-repo setups.
+
+### 4. Commit and Push Changes
+```bash
+git add .
+git commit -m "chore: setup OIDC integration"
+git push
+```
+
+### 5. Integrate into Your Workflows
+Reference the generated IAM role in your GitHub Actions workflow:
+```yaml
+permissions:
+  id-token: write
+  contents: read
+steps:
+  - name: Configure AWS credentials
+    uses: aws-actions/configure-aws-credentials@v2
+    with:
+      role-to-assume: ${{ vars.GHA_OIDC_ROLE_ARN }}
+      aws-region: us-east-1
+      audience: sts.amazonaws.com
+```
+This workflow step configures AWS credentials for your GitHub Actions job using the OIDC role you just set up. The `role-to-assume` references the variable that was automatically set in your repository by the setup script.
 
 ### Inspect the Trust or Permissions Policy
 
@@ -138,44 +138,6 @@ The script:
 - Works on macOS and Linux (portable `curl`/`sed` logic)
 - Handles both classic and fine-grained GitHub tokens
 - Prints debug output for each step (never exposing secrets)
-
-## Step-by-Step Example
-
-The following steps walk you through setting up secure, automated OIDC authentication for one or more GitHub repositories using this project. You’ll see a generic example first, followed by a real-world example with concrete values.
-
-### Deploy and Configure OIDC for Multiple Repos
-
-**Generic Example:**
-```bash
-bash setup_oidc.sh --github-org <ORG_NAME> --allowed-repos <repo1,repo2,...> --region <aws-region> --github-token <GITHUB_TOKEN>
-```
-- `<ORG_NAME>`: Your GitHub organization name
-- `<repo1,repo2,...>`: Comma-separated list of repository names (without org prefix)
-- `<aws-region>`: The AWS region for the IAM role (e.g., us-east-1)
-- `<GITHUB_TOKEN>`: A GitHub personal access token with the necessary permissions
-
-This command deploys the CloudFormation stack and configures the OIDC trust policy for all listed repositories, then sets the `GHA_OIDC_ROLE_ARN` variable in each repo.
-
-**Your Example:**
-```bash
-bash setup_oidc.sh --github-org PaulDuvall --allowed-repos gha-aws-oidc-bootstrap,llm-guardian,owasp_llm_top10 --region us-east-1 --github-token <GITHUB_TOKEN>
-```
-This command configures OIDC for the repositories `gha-aws-oidc-bootstrap`, `llm-guardian`, and `owasp_llm_top10` in the `PaulDuvall` organization, targeting the `us-east-1` region.
-
-### Use the Role in a GitHub Actions Workflow
-```yaml
-- name: Configure AWS credentials
-  uses: aws-actions/configure-aws-credentials@v2
-  with:
-    role-to-assume: ${{ vars.GHA_OIDC_ROLE_ARN }}
-    aws-region: us-east-1
-    audience: sts.amazonaws.com
-```
-This workflow step configures AWS credentials for your GitHub Actions job using the OIDC role you just set up. The `role-to-assume` references the variable that was automatically set in your repository by the setup script.
-
-## References
-- [GitHub Actions OIDC](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect)
-- [AWS OIDC Trust Policy](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html)
 
 ## IAM Role Trust and Permissions Configuration
 
@@ -245,3 +207,7 @@ To use this automation, you’ll need to provide a GitHub Personal Access Token 
 - The stack is designed to work with any target GitHub repository—not just the one containing the automation. Be sure to create your token with access to the correct repository.
 
 > By automating AWS credential management with GitHub OIDC and IAM, you eliminate static secrets, enforce least privilege, and empower your teams to deliver software rapidly and securely.
+
+## References
+- [GitHub Actions OIDC](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect)
+- [AWS OIDC Trust Policy](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html)
