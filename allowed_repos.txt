@@ -2,3 +2,14 @@
 # Example:
 # YourOrg/repo-one
 # YourOrg/repo-two
+
+PaulDuvall/helloworld
+PaulDuvall/fin
+PaulDuvall/google-oidc
+PaulDuvall/llm-guardian
+PaulDuvall/flux
+PaulDuvall/EchoTrap
+PaulDuvall/SafePush
+PaulDuvall/open_source_draft
+PaulDuvall/owasp_llm_top10
+PaulDuvall/greateightgoals

@@ -106,12 +106,16 @@ steps:
 This approach lets you manage OIDC access for multiple GitHub repositories using a single CloudFormation stack and IAM role.
 
 ### 1. Prepare Your Repository List
-- **Do NOT include the organization name here**—just the repository names, separated by commas.
-- Example:
+- **Create an `allowed_repos.txt` file in the project root listing each allowed repository in `org/repo` format, one per line.**
+- **Do NOT commit your `allowed_repos.txt` file.** It is gitignored by default. Instead, use the provided `allowed_repos.txt.example` as a template for contributors.
+- Example `allowed_repos.txt`:
   ```
-  repo-one,repo-two,repo-three
+  PaulDuvall/gha-aws-oidc-bootstrap
+  PaulDuvall/llm-guardian
+  PaulDuvall/owasp_llm_top10
   ```
-- The organization name is provided separately with the `GitHubOrg` parameter during deployment.
+- The organization name must be included for each repo (e.g., `PaulDuvall/gha-aws-oidc-bootstrap`).
+- To allow additional repositories, add them to `allowed_repos.txt` and rerun the setup script.
 
 ### 2. Deploy the CloudFormation Stack
 Use the AWS CLI to deploy the stack:
@@ -272,6 +276,7 @@ Use this workflow to manually validate that your GitHub Actions runner can succe
 ├── setup_oidc.sh
 ├── trust-policy.example.json
 ├── allowed_repos.txt
+├── allowed_repos.txt.example
 ├── .github/
 │   └── workflows/
 │       ├── lint.yml
@@ -282,6 +287,7 @@ Use this workflow to manually validate that your GitHub Actions runner can succe
 ```
 
 - `allowed_repos.txt`: List of additional GitHub repositories (in `org/repo` format) that are permitted to assume the AWS IAM role via OIDC. Each line should contain one repository. If you only want to enable OIDC for the current repository, you do not need to edit this file.
+- `allowed_repos.txt.example`: Template for `allowed_repos.txt`.
 - `trust-policy.example.json`: Template for generating the trust policy used in AWS IAM. This file is used by `setup_oidc.sh` to create the actual `trust-policy.json` during setup. **Never commit your real `trust-policy.json` to version control.**
 - `docs/blog_post.md`: (Optional) Contains blog post or supplementary documentation.
 
@@ -361,3 +367,11 @@ bash setup_oidc.sh --github-org <ORG> --allowed-repos <repo1,repo2,...> --region
 ### References
 - [GitHub Actions OIDC Docs](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect)
 - [AWS OIDC Federation Docs](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html)
+
+---
+
+## Additional Notes
+
+- `allowed_repos.txt` is listed in `.gitignore` to prevent accidental commits of sensitive or environment-specific repo lists.
+- Use `allowed_repos.txt.example` as a template for onboarding or sharing project setup instructions.
+- The setup script and stack now fully support robust, multi-repo OIDC integration with dynamic trust policy generation.

@@ -17,3 +17,4 @@ __pycache__/
 
 # Project-specific
 trust-policy.json
+allowed_repos.txt
