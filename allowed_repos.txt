@@ -1,9 +1,0 @@
-# allowed_repos.txt.example
-# List each repository (in org/repo format) that should be allowed to assume the OIDC IAM role.
-# One repository per line. Do NOT commit your actual allowed_repos.txt file to version control.
-# Example entries:
-PaulDuvall/gha-aws-oidc-bootstrap
-PaulDuvall/llm-guardian
-PaulDuvall/greateightgoals
-PaulDuvall/owasp_llm_top10
-
