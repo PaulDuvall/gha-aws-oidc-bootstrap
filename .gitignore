@@ -89,3 +89,5 @@ Pipfile.lock
 
 # Local test venv
 .test-venv/
+
+allowed_repos.txt
