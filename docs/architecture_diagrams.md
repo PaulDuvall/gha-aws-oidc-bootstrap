@@ -25,17 +25,21 @@ Generate a diagram that clearly shows the following components and their relatio
 flowchart LR
     subgraph GitHub
         GH_Workflow["GitHub Actions Workflow"]
-        OIDC_Token["GitHub OIDC Token Service\ntoken.actions.githubusercontent.com"]
+        OIDC_Token["GitHub OIDC Token Service
+token.actions.githubusercontent.com"]
     end
 
     subgraph AWS
         OIDC_Provider["AWS IAM OIDC Identity Provider"]
         CFN_Stack["CloudFormation Stack"]
-        IAM_Role["AWS IAM Role\n(trusts GitHub OIDC)"]
-        IAM_Policies["IAM Policies\n(from policies/ directory)"]
+        IAM_Role["AWS IAM Role
+(trusts GitHub OIDC)"]
+        IAM_Policies["IAM Policies
+(from policies/ directory)"]
     end
 
-    Automation["Automation Scripts\n(run.sh, src/cfn_deploy.py)"]
+    Automation["Automation Scripts
+(run.sh, src/cfn_deploy.py)"]
 
     GH_Workflow -- "Requests OIDC Token" --> OIDC_Token
     OIDC_Token -- "Presents OIDC Token" --> OIDC_Provider
@@ -45,7 +49,8 @@ flowchart LR
     CFN_Stack -- "Attaches" --> IAM_Policies
     OIDC_Provider -- "Trust Relationship" --> IAM_Role
     GH_Workflow -- "Assume Role via OIDC" --> IAM_Role
-    Automation -- "Sets repo variable\n(GHA_OIDC_ROLE_ARN)" --> GH_Workflow
+    Automation -- "Sets repo variable
+(GHA_OIDC_ROLE_ARN)" --> GH_Workflow
 ```
 
 ## Diagram Style
