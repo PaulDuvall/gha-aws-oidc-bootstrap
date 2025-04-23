@@ -19,6 +19,35 @@ Generate a diagram that clearly shows the following components and their relatio
 - Show how the setup scripts automate provider/role/policy creation and updates.
 - Indicate where repo variables (e.g., `GHA_OIDC_ROLE_ARN`) are set in GitHub.
 
+## Mermaid Architecture Diagram
+
+```mermaid
+flowchart LR
+    subgraph GitHub
+        GH_Workflow["GitHub Actions Workflow"]
+        OIDC_Token["GitHub OIDC Token Service\ntoken.actions.githubusercontent.com"]
+    end
+
+    subgraph AWS
+        OIDC_Provider["AWS IAM OIDC Identity Provider"]
+        CFN_Stack["CloudFormation Stack"]
+        IAM_Role["AWS IAM Role\n(trusts GitHub OIDC)"]
+        IAM_Policies["IAM Policies\n(from policies/ directory)"]
+    end
+
+    Automation["Automation Scripts\n(run.sh, src/cfn_deploy.py)"]
+
+    GH_Workflow -- "Requests OIDC Token" --> OIDC_Token
+    OIDC_Token -- "Presents OIDC Token" --> OIDC_Provider
+    Automation -- "Deploys/Updates" --> CFN_Stack
+    CFN_Stack -- "Creates/Manages" --> OIDC_Provider
+    CFN_Stack -- "Creates/Manages" --> IAM_Role
+    CFN_Stack -- "Attaches" --> IAM_Policies
+    OIDC_Provider -- "Trust Relationship" --> IAM_Role
+    GH_Workflow -- "Assume Role via OIDC" --> IAM_Role
+    Automation -- "Sets repo variable\n(GHA_OIDC_ROLE_ARN)" --> GH_Workflow
+```
+
 ## Diagram Style
 - Use AWS and GitHub icons where possible.
 - Prefer a layered, left-to-right or top-down flow.
