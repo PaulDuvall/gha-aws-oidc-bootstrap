@@ -34,7 +34,7 @@ This design means you never have to manage multiple OIDC providers for GitHub in
 
 ## Step-by-Step: Automated Secure Setup and Usage
 
-The following steps walk you through setting up secure, automated OIDC authentication for one or more GitHub repositories using this project. You’ll see a generic example first, followed by a real-world example with concrete values.
+The following steps walk you through setting up secure, automated OIDC authentication for one or more GitHub repositories using this project. The process is managed by the `run.sh` script, which provides a unified interface for setup, deployment, and management.
 
 ### 1. Clone the Repository
 ```bash
@@ -48,30 +48,32 @@ aws configure
 # Ensure your credentials have IAM and CloudFormation permissions
 ```
 
-### 3. Deploy and Configure OIDC for Multiple Repos
+### 3. Run the Setup and Deployment Script
 
-To run the OIDC setup script, you **must** provide all required arguments. Running `bash setup_oidc.sh` without arguments will not work for most use cases and will result in errors or incomplete configuration.
+Use the `run.sh` script to automate the setup and deployment process. This script handles CloudFormation stack deployment, OIDC provider configuration, and IAM role setup for your GitHub repositories.
 
-> **Important:** Before running this step, review the [Using the Tool: GitHub Token Requirements](#using-the-tool-github-token-requirements) section below to ensure your GitHub token has the necessary scopes and permissions for all target repositories.
-
-> **Note:** The current repository is always included by default. You do **not** need to add it to `allowed_repos.txt` or the `--allowed-repos` argument—the script will automatically grant access to the repo where it is run. Only specify additional repositories if you want them to share the IAM role.
-
-**Generic Example:**
 ```bash
-bash setup_oidc.sh --github-org <ORG_NAME> --allowed-repos <repo1,repo2,...> --region <aws-region> --github-token <GITHUB_TOKEN>
+./run.sh setup \
+  --repos <repo1,repo2,...> \
+  --region <aws-region> \
+  --github-token <GITHUB_TOKEN>
 ```
-- `<ORG_NAME>`: Your GitHub organization name
+
 - `<repo1,repo2,...>`: Comma-separated list of repository names (without org prefix)
 - `<aws-region>`: The AWS region for the IAM role (e.g., us-east-1)
 - `<GITHUB_TOKEN>`: A GitHub personal access token with the necessary permissions
 
-This command deploys the CloudFormation stack and configures the OIDC trust policy for all listed repositories, then sets the `GHA_OIDC_ROLE_ARN` variable in each repo.
+This command will deploy the CloudFormation stack, configure the OIDC trust policy for all listed repositories, and set the `GHA_OIDC_ROLE_ARN` variable in each repository.
 
-**My Example:**
+**Example:**
 ```bash
-bash setup_oidc.sh --github-org PaulDuvall --allowed-repos llm-guardian,owasp_llm_top10 --region us-east-1 --github-token <GITHUB_TOKEN>
+./run.sh setup \
+  --repos gha-aws-oidc-bootstrap,llm-guardian \
+  --region us-east-1 \
+  --github-token ghp_xxx...
 ```
-This command configures OIDC for the repositories `llm-guardian` and `owasp_llm_top10` in the `PaulDuvall` organization, targeting the `us-east-1` region.
+
+> **Example:** See [`verify_oidc.yml`](https://github.com/PaulDuvall/gha-aws-oidc-bootstrap/blob/main/.github/workflows/verify_oidc.yml) for a complete workflow using the generated IAM role.
 
 ### 4. Integrate into Your Workflows
 Reference the generated IAM role in your GitHub Actions workflow:
@@ -88,7 +90,7 @@ steps:
       aws-region: us-east-1
       audience: sts.amazonaws.com
 ```
-This workflow step configures AWS credentials for your GitHub Actions job using the OIDC role you just set up. The `role-to-assume` references the variable that was automatically set in your repository by the setup script.
+This workflow step configures AWS credentials for your GitHub Actions job using the OIDC role you just set up. The `role-to-assume` references the variable that was automatically set in your repository by the `run.sh` script.
 
 > **Example:** See [`verify_oidc.yml`](https://github.com/PaulDuvall/gha-aws-oidc-bootstrap/blob/main/.github/workflows/verify_oidc.yml) for a complete workflow using the generated IAM role.
 >
@@ -196,8 +198,8 @@ A key feature of this project is the `policies/` directory, which allows you to 
 
 - **How it works:**
   - Place one or more IAM policy JSON files (e.g., `lambda.json`, `s3-readonly.json`) in the `policies/` directory.
-  - When you run `setup_oidc.sh`, the script automatically attaches all policy files in `policies/` to the IAM OIDC role, making them effective for all repositories the role trusts.
-  - You can add, edit, or remove policy files at any time. To apply changes, simply re-run `setup_oidc.sh`.
+  - When you run `run.sh`, the script automatically attaches all policy files in `policies/` to the IAM OIDC role, making them effective for all repositories the role trusts.
+  - You can add, edit, or remove policy files at any time. To apply changes, simply re-run `run.sh`.
 
 - **Multi-repo support:**
   - The IAM role and its attached policies can be used by any number of repositories in your organization, as defined by the trust policy. This enables a single, centrally managed set of AWS permissions for all your CI/CD workflows.
@@ -240,14 +242,14 @@ To use the OIDC setup script, you **must** provide a GitHub Personal Access Toke
 
 See the full guide: [`docs/github_fine_grained_pat_setup.md`](./github_fine_grained_pat_setup.md)
 
-- When running the setup script, pass your fine-grained PAT as the `--github-token` argument.
+- When running the setup, pass your fine-grained PAT as the `--github-token` argument to `run.sh`.
 - The script uses this token to set repository variables and manage OIDC integration securely across all selected repositories.
 
 > **Tip:** If your organization enforces SSO, remember to authorize the token for SSO access after creation.
 
 ## Using the Tool: GitHub Token Requirements
 
-To use this automation, you’ll need to provide a GitHub Personal Access Token (PAT) when prompted by the setup script. This token is required to set repository variables and manage GitHub Actions configuration programmatically.
+To use this automation, you’ll need to provide a GitHub Personal Access Token (PAT) when prompted by the `run.sh` script. This token is required to set repository variables and manage GitHub Actions configuration programmatically.
 
 **How to create your GitHub token:**
 1. Go to [GitHub > Settings > Developer settings > Personal access tokens](https://github.com/settings/tokens)
@@ -259,11 +261,8 @@ To use this automation, you’ll need to provide a GitHub Personal Access Token 
 5. Copy the token (you won’t be able to see it again)
 
 **How it works:**
-- When you run the setup script, it will prompt you to paste your GitHub token. This enables the script to set the necessary repository variables (such as `GHA_OIDC_ROLE_ARN`) and configure your GitHub Actions workflows securely and automatically.
+- When you run the setup with `run.sh`, it will prompt you to paste your GitHub token. This enables the script to set the necessary repository variables (such as `GHA_OIDC_ROLE_ARN`) and configure your GitHub Actions workflows securely and automatically.
 - If secrets or tokens need to be persisted in AWS, the automation uses AWS SSM Parameter Store with SecureString for encryption and secure access.
-
-**Note:**  
-- The stack is designed to work with any target GitHub repository—not just the one containing the automation. Be sure to create your token with access to the correct repository.
 
 > By automating AWS credential management with GitHub OIDC and IAM, you eliminate static secrets, enforce least privilege, and empower your teams to deliver software rapidly and securely.
 
