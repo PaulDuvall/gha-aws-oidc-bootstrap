@@ -23,24 +23,23 @@ Generate a diagram that clearly shows the following components and their relatio
 
 ```mermaid
 flowchart LR
-    subgraph GitHub
-        GH_Workflow["GitHub Actions Workflow"]
-        OIDC_Token["GitHub OIDC Token Service
-token.actions.githubusercontent.com"]
+    %% GitHub Layer
+    subgraph GH["GitHub 🐙"]
+        GH_Workflow["<b>GitHub Actions Workflow</b>\n<code>main.yml</code>"]
+        OIDC_Token["<b>OIDC Token Service</b>\n<code>token.actions.githubusercontent.com</code>"]
     end
 
-    subgraph AWS
-        OIDC_Provider["AWS IAM OIDC Identity Provider"]
-        CFN_Stack["CloudFormation Stack"]
-        IAM_Role["AWS IAM Role
-(trusts GitHub OIDC)"]
-        IAM_Policies["IAM Policies
-(from policies/ directory)"]
+    %% AWS Layer
+    subgraph AWS["AWS ☁️"]
+        OIDC_Provider["<b>IAM OIDC Identity Provider</b>\n<code>aws_iam_oidc_provider</code>"]
+        CFN_Stack["<b>CloudFormation Stack</b>\n<code>cfn_deploy.py</code>"]
+        IAM_Role["<b>AWS IAM Role</b>\n(trusts GitHub OIDC)"]
+        IAM_Policies["<b>IAM Policies</b>\n(from <code>policies/</code> dir)"]
     end
 
-    Automation["Automation Scripts
-(run.sh, src/cfn_deploy.py)"]
+    Automation["<b>Automation Scripts</b>\n<code>run.sh</code>, <code>src/cfn_deploy.py</code>"]
 
+    %% Flows
     GH_Workflow -- "Requests OIDC Token" --> OIDC_Token
     OIDC_Token -- "Presents OIDC Token" --> OIDC_Provider
     Automation -- "Deploys/Updates" --> CFN_Stack
@@ -49,8 +48,7 @@ token.actions.githubusercontent.com"]
     CFN_Stack -- "Attaches" --> IAM_Policies
     OIDC_Provider -- "Trust Relationship" --> IAM_Role
     GH_Workflow -- "Assume Role via OIDC" --> IAM_Role
-    Automation -- "Sets repo variable
-(GHA_OIDC_ROLE_ARN)" --> GH_Workflow
+    Automation -- "Sets repo variable\n(<code>GHA_OIDC_ROLE_ARN</code>)" --> GH_Workflow
 ```
 
 ## Diagram Style
