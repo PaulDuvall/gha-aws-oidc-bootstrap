@@ -9,7 +9,7 @@ import sys
 import boto3
 
 TEMPLATE_PATH = Path(__file__).parent.parent / "cloudformation" / "iam_role.yaml"
-STACK_NAME = "github-actions-oidc-role-test"
+STACK_NAME = "gha-aws-oidc-bootstrap"
 DEFAULT_REGION = "us-east-1"
 
 def deploy_stack(region=DEFAULT_REGION, oidc_provider_arn=None):
