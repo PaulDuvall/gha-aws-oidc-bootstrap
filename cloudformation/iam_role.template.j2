@@ -1,0 +1,23 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Minimal IAM Role for GitHub Actions OIDC integration (see US-XXX)
+Parameters:
+  OIDCProviderArn:
+    Type: String
+    Description: OIDC provider ARN for GitHub Actions (e.g., arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com)
+Resources:
+  GitHubActionsOIDCRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub github-actions-oidc-role-${AWS::StackName}
+      AssumeRolePolicyDocument:
+{{ trust_policy | to_nice_yaml_block(8) }}
+      Policies:
+{% for policy in policies %}
+        - PolicyName: {{ policy.name }}
+          PolicyDocument:
+{{ policy.document | to_nice_yaml_block(12) }}
+{% endfor %}
+Outputs:
+  RoleArn:
+    Description: "ARN of the GitHub Actions OIDC IAM Role"
+    Value: !GetAtt GitHubActionsOIDCRole.Arn

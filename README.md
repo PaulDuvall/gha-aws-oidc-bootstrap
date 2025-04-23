@@ -6,7 +6,9 @@
 
 This project provides a secure, automated setup for AWS OIDC authentication with GitHub Actions.
 
-- Modular Bash script ([setup_oidc.sh](setup_oidc.sh)) for provisioning AWS IAM roles and trust policies
+- Modular Bash script ([run.sh](run.sh)) for provisioning AWS IAM roles and trust policies
+- Jinja2-based CloudFormation template rendering for IAM role and policies
+- Modular policy management via the `policies/` directory
 - GitHub Actions workflows for OIDC verification and code linting
 - Documentation and CI/CD best practices
 
@@ -21,23 +23,33 @@ git clone https://github.com/PaulDuvall/gha-aws-oidc-bootstrap.git
 cd gha-aws-oidc-bootstrap
 ```
 
-### 2. Run the OIDC Setup Script
+### 2. Run the OIDC Setup & Deployment Script
+
+You can now use the streamlined, fully automated workflow:
 
 ```bash
-bash setup_oidc.sh --github-org <ORG> --allowed-repos <repo1,repo2,...> --region <aws-region> --github-token <GITHUB_TOKEN>
+bash run.sh --github-org PaulDuvall --region us-east-1 --github-token <YOUR_GITHUB_TOKEN>
 ```
 
-- The script will always grant access to the current repository by default (auto-detected).
-- To allow additional repositories, add each one (in `org/repo` format) to `allowed_repos.txt` (one per line) before running the script.
-- You do NOT need to edit `allowed_repos.txt` if you only want to enable OIDC for the current repository.
+- **No need to supply `--oidc-provider-arn`.**
+- The script will automatically discover or create the GitHub OIDC provider in AWS and use its ARN.
+- All tests are run before deployment.
+- If you want to override the OIDC provider ARN, you may still supply `--oidc-provider-arn <ARN>`.
 
-### 3. Commit and Push Changes
+**GitHub Token Requirements:**
+- [How to create your GitHub token](https://github.com/settings/tokens):
+  - Classic: `repo`, `workflow`, `admin:repo_hook`
+  - Fine-grained: "Actions" (Read/Write), "Variables" (Read/Write), "Secrets" (if needed)
 
-```bash
-git add .
-git commit -m "chore: initial OIDC setup"
-git push
-```
+---
+
+## Summary of Recent Changes (2025-04-23)
+
+- **Switched to Jinja2-based CloudFormation template rendering** for the IAM role and policies, ensuring robust YAML block indentation and eliminating placeholder injection logic.
+- **Removed obsolete scripts and templates**: `inject_trust_policy.py` and `iam_role.base.yaml`.
+- **Policies are now modular and loaded from the `/policies` directory**; the renderer attaches all found policies to the IAM role.
+- **Trust policy is dynamically generated** and injected into the CloudFormation template for least-privilege, multi-repo OIDC integration.
+- **Deployment workflow and scripts updated** for clarity, maintainability, and security.
 
 ---
 
@@ -57,364 +69,30 @@ This automation sets up secure OIDC authentication between GitHub Actions and AW
 5. **Update Trust Policy for Cross-Repo Access**
    - To allow another repo, add it to `allowed_repos.txt` and rerun the script.
 
-You can view and manage the OIDC provider in the AWS Console (IAM > Identity providers) or with:
-```bash
-aws iam list-open-id-connect-providers
-```
-
 ---
 
-## Using the Tool: GitHub Token Requirements
+## Automated Multi-Repo OIDC Trust Policy
 
-When running `setup_oidc.sh`, you’ll be prompted for a GitHub Personal Access Token (PAT). This token is required to set repository variables and manage GitHub Actions configuration programmatically.
+This project automatically generates a flexible IAM trust policy for GitHub Actions OIDC integration based on the repositories listed in `allowed_repos.txt`.
 
-**How to create your GitHub token:**
-1. Go to [GitHub > Settings > Developer settings > Personal access tokens](https://github.com/settings/tokens)
-2. Click "Generate new token" (classic) or "Fine-grained token"
-3. Name your token and set an expiration
-4. **Required scopes:**
-   - Classic: `repo` (for private repos), `workflow`, `admin:repo_hook`
-   - Fine-grained: "Actions" (Read/Write), "Variables" (Read/Write), "Secrets" (if needed) for the target repo
-5. Copy the token (you won’t be able to see it again)
-
-**How it works:**
-- The script uses your token to set up repository variables (like `GHA_OIDC_ROLE_ARN`) and configure GitHub Actions securely.
-- The stack is designed for any target GitHub repository—not just the one running the automation.
-
----
-
-## Example: GitHub Actions OIDC Workflow
-
-```yaml
-permissions:
-  id-token: write
-  contents: read
-steps:
-  - uses: actions/checkout@v4
-  - name: Configure AWS credentials
-    uses: aws-actions/configure-aws-credentials@v2
-    with:
-      role-to-assume: ${{ vars.GHA_OIDC_ROLE_ARN }}
-      aws-region: us-east-1
-      audience: sts.amazonaws.com
-```
-
----
-
-## Single-Stack, Multi-Repo OIDC Setup (Recommended)
-
-This approach lets you manage OIDC access for multiple GitHub repositories using a single CloudFormation stack and IAM role.
-
-### 1. Prepare Your Repository List
-- **Create an `allowed_repos.txt` file in the project root listing each allowed repository in `org/repo` format, one per line.**
 - **Do NOT commit your `allowed_repos.txt` file.** It is gitignored by default. Instead, use the provided `allowed_repos.txt.example` as a template for contributors.
-- Example `allowed_repos.txt`:
-  ```
-  PaulDuvall/gha-aws-oidc-bootstrap
-  PaulDuvall/llm-guardian
-  PaulDuvall/owasp_llm_top10
-  ```
-- The organization name must be included for each repo (e.g., `PaulDuvall/gha-aws-oidc-bootstrap`).
-- To allow additional repositories, add them to `allowed_repos.txt` and rerun the setup script.
-
-### 2. Deploy the CloudFormation Stack
-Use the AWS CLI to deploy the stack:
-
-```bash
-aws cloudformation deploy \
-  --template-file oidc-multi-repo-role.yaml \
-  --stack-name github-oidc-multi-repo \
-  --capabilities CAPABILITY_NAMED_IAM \
-  --parameter-overrides \
-    GitHubOrg=YourOrg \
-    AllowedRepos="repo-one,repo-two,repo-three" \
-    RoleName=github-oidc-multi-repo-role
-```
-- Replace `YourOrg` with your GitHub organization name.
-- Update the `AllowedRepos` value as needed.
-
-### 3. Update Allowed Repositories
-To add or remove repositories, update the `AllowedRepos` parameter and redeploy:
-
-```bash
-aws cloudformation deploy \
-  --template-file oidc-multi-repo-role.yaml \
-  --stack-name github-oidc-multi-repo \
-  --capabilities CAPABILITY_NAMED_IAM \
-  --parameter-overrides \
-    GitHubOrg=YourOrg \
-    AllowedRepos="repo-one,repo-two,new-repo" \
-    RoleName=github-oidc-multi-repo-role
-```
-
-### 4. Reference the IAM Role in GitHub Actions
-In your GitHub Actions workflow, use:
-
-```yaml
-- name: Configure AWS credentials
-  uses: aws-actions/configure-aws-credentials@v2
-  with:
-    role-to-assume: arn:aws:iam::<AWS_ACCOUNT_ID>:role/github-oidc-multi-repo-role
-    aws-region: us-east-1
-    audience: sts.amazonaws.com
-```
-
----
-
-For advanced automation or integration with existing scripts, you may modify `setup_oidc.sh` to use the new template and pass the appropriate parameters as shown above.
-
----
-
-## ✅ Linting and Code Quality
-
-This project enforces code quality and security using automated linting on every push and pull request to the `main` branch.
-
-- **Python code** is checked with [`flake8`](https://flake8.pycqa.org/) (Python 3.11)
-- **Shell scripts** are checked with [`shellcheck`](https://www.shellcheck.net/)
-- All scripts and workflows are linted for both quality and security
-
-**GitHub Actions Workflow:** [`.github/workflows/lint.yml`](.github/workflows/lint.yml)
-
-### Run Lint Checks Locally
-
-To check code quality before pushing changes:
-
-```bash
-# Python linting (requires Python 3.11)
-pip install flake8
-flake8 .
-
-# Shell script linting
-shellcheck setup_oidc.sh
-```
-
-#### Example Workflow Output
-
-```yaml
-name: Lint
-
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install flake8
-          flake8 .
-      - uses: ludeeus/action-shellcheck@v2
-```
-
----
-
-## 🧪 OIDC Verification Workflow
-
-This repository includes a manual workflow to verify OIDC authentication end-to-end. Trigger this workflow from the GitHub Actions UI to confirm that your OIDC integration is functioning correctly:
-
-```yaml
-# .github/workflows/verify_oidc.yml
-name: Verify OIDC Authentication
-
-on:
-  workflow_dispatch:
-
-jobs:
-  verify:
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: aws-actions/configure-aws-credentials@v2
-        with:
-          role-to-assume: ${{ vars.GHA_OIDC_ROLE_ARN }}
-          aws-region: us-east-1
-      - name: Verify AWS identity
-        run: aws sts get-caller-identity
-```
-
-Use this workflow to manually validate that your GitHub Actions runner can successfully assume the configured AWS IAM role using OIDC.
-
----
-
-## ⚠️ Trust Policy Workflow
-
-- The file `trust-policy.json` contains sensitive, account-specific information and **is not tracked in version control** (see `.gitignore`).
-- To customize your AWS/GitHub OIDC integration, use the provided template: `trust-policy.example.json`.
-- During setup, the script will automatically generate a `trust-policy.json` file by replacing placeholders in the example with your actual AWS account ID, GitHub organization, and repository name.
-- **Never commit your real `trust-policy.json` to version control.**
-
-**Steps:**
-1. Edit `trust-policy.example.json` if you need to customize the trust policy structure.
-2. Run `setup_oidc.sh`—it will prompt you for required values and generate `trust-policy.json` automatically.
-3. Review `trust-policy.json` before deploying to AWS.
-
----
-
-## 🛡️ Security & Best Practices
-
-- Follows least privilege for IAM roles.
-- GitHub tokens are stored securely in AWS SSM as SecureString.
-- OIDC trust policy is automatically updated for your repository.
-- All scripts and workflows are linted for quality and security.
-
----
-
-## 📂 Directory Structure
-
-```
-.
-├── setup_oidc.sh
-├── trust-policy.example.json
-├── allowed_repos.txt
-├── allowed_repos.txt.example
-├── .github/
-│   └── workflows/
-│       ├── lint.yml
-│       └── verify_oidc.yml
-├── docs/
-│   └── blog_post.md
-└── ...
-```
-
-- `allowed_repos.txt`: List of additional GitHub repositories (in `org/repo` format) that are permitted to assume the AWS IAM role via OIDC. Each line should contain one repository. If you only want to enable OIDC for the current repository, you do not need to edit this file.
-- `allowed_repos.txt.example`: Template for `allowed_repos.txt`.
-- `trust-policy.example.json`: Template for generating the trust policy used in AWS IAM. This file is used by `setup_oidc.sh` to create the actual `trust-policy.json` during setup. **Never commit your real `trust-policy.json` to version control.**
-- `docs/blog_post.md`: (Optional) Contains blog post or supplementary documentation.
-
----
-
-## 🤝 Contributing
-
-1. Fork the repo and create your feature branch.
-2. Run [setup_oidc.sh](setup_oidc.sh) and ensure all workflows pass.
-3. Open a pull request and reference relevant changes.
-
----
-
-## 📖 Additional Resources
-- [GitHub Actions OIDC documentation](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect)
-- [AWS OIDC provider setup](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html)
-
----
-
-For questions or improvements, please open an issue or pull request.
-
----
-
-**Note:** This repository was previously named `ghactions-oidc`. All references have been updated to reflect the new name: `gha-aws-oidc-bootstrap`.
-
----
-
-## GitHub Actions AWS OIDC Multi-Repo Bootstrap
-
-This project automates the setup of AWS IAM roles and GitHub repository variables to enable secure, scalable OIDC authentication for multiple GitHub repositories using GitHub Actions.
-
-## Key Features
-- **Multi-Repo OIDC Automation:** Single CloudFormation stack supports multiple repositories.
-- **Robust Variable Management:** Ensures the latest IAM role ARN is always set as a GitHub Actions variable (`GHA_OIDC_ROLE_ARN`) in each repo, with automatic cleanup.
-- **Cross-Platform Script:** Compatible with macOS and Linux (uses portable `curl`/`sed` logic).
-- **Supports Classic and Fine-Grained GitHub Tokens:** Detects and uses the correct authorization scheme.
-- **Security Best Practices:** No reserved prefixes, least-privilege trust policy, and debug output never exposes secrets.
-
-## Usage
-
-### Prerequisites
-- Python 3.11
-- AWS CLI configured
-- GitHub Personal Access Token (classic or fine-grained, with repo/actions:write)
-
-### Setup
-Run the setup script:
-```bash
-bash setup_oidc.sh --github-org <ORG> --allowed-repos <repo1,repo2,...> --region <aws-region> --github-token <GITHUB_TOKEN>
-```
-
-### What the Script Does
-1. Deploys/updates a CloudFormation stack with a trust policy for all listed repos:
-   - Uses `repo:<org>/<repo>:*` for each repo in the OIDC trust policy.
-2. Deletes the `GHA_OIDC_ROLE_ARN` variable in each repo (if it exists) before setting it.
-3. Always tries to create the variable via POST, then PATCHes if it already exists.
-4. Prints debug output for each step (token is always masked).
-
-### Example Workflow Usage
-```yaml
-- name: Configure AWS credentials
-  uses: aws-actions/configure-aws-credentials@v2
-  with:
-    role-to-assume: ${{ vars.GHA_OIDC_ROLE_ARN }}
-    aws-region: us-east-1
-    audience: sts.amazonaws.com
-```
-
-### Troubleshooting
-- If you see `Not Found` or `422` errors, the script will retry with the appropriate method.
-- If you change the repo list, re-run the script to update the trust policy and variables.
-
-### Security Notes
-- The trust policy uses least-privilege by limiting `sub` to specific repos.
-- No variables use the reserved `GITHUB_` prefix.
-
-### References
-- [GitHub Actions OIDC Docs](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect)
-- [AWS OIDC Federation Docs](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html)
-
----
-
-## Additional Notes
-
-- `allowed_repos.txt` is listed in `.gitignore` to prevent accidental commits of sensitive or environment-specific repo lists.
-- Use `allowed_repos.txt.example` as a template for onboarding or sharing project setup instructions.
-- The setup script and stack now fully support robust, multi-repo OIDC integration with dynamic trust policy generation.
 
 ---
 
 ## Customizing AWS Permissions with the `policies/` Directory
 
-This project uses the `policies/` directory to manage AWS IAM permissions for the OIDC role used by GitHub Actions workflows. This approach allows you to customize what AWS resources your workflows can access **without editing the main CloudFormation template**.
-
-### How it Works
 - Place one or more IAM policy JSON files (e.g., `lambda.json`, `s3-readonly.json`) in the `policies/` directory.
-- When you run `setup_oidc.sh`, the script automatically attaches all policy files in `policies/` to the IAM OIDC role.
+- When you run `run.sh`, the script automatically attaches all policy files in `policies/` to the IAM OIDC role.
 - Each policy file should define only AWS permissions (not GitHub repo logic). Repository access is controlled by the trust policy, not these files.
 
-### Customization Steps
-1. **Edit or add policy files** in `policies/` to grant or restrict AWS permissions as needed. For example:
-    - Grant Lambda permissions in `lambda.json`
-    - Grant S3 read-only access in `s3-readonly.json`
-    - Grant CloudWatch Logs access in `cloudwatch-logs.json`
-2. **Remove or archive policy files** you do not need (principle of least privilege).
-3. **Re-run `setup_oidc.sh`** after making any changes to apply the updated permissions to the IAM role.
+---
 
-### Example: Adding Lambda Permissions
-To allow your workflows to invoke and update a Lambda function, use a `lambda.json` like:
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "lambda:InvokeFunction",
-        "lambda:UpdateFunctionCode",
-        "lambda:GetFunction"
-      ],
-      "Resource": "arn:aws:lambda:us-east-1:<your-account-id>:function:<your-function-name>"
-    }
-  ]
-}
-```
-
-### Best Practices
-- **Never scope policies to a single GitHub repository.**
+## Best Practices
+- Never scope policies to a single GitHub repository.
 - Keep policies minimal and auditable.
+- Remove or archive policy files you do not need (principle of least privilege).
 - Review `policies/README.md` for more details and examples.
+
+---
+
+For questions or improvements, please open an issue or pull request.

@@ -6,6 +6,10 @@ This repository is more than just a collection of scripts and templates. It’s 
 
 You can find the project here: [https://github.com/PaulDuvall/gha-aws-oidc-bootstrap/](https://github.com/PaulDuvall/gha-aws-oidc-bootstrap/)
 
+## Overview
+
+The `gha-aws-oidc-bootstrap` project leverages a robust, Jinja2-based workflow for secure, scalable AWS IAM integration with GitHub Actions. This approach minimizes manual steps, enforces best practices, and ensures every repository always has the correct configuration.
+
 ## From Static Secrets to Ephemeral Trust
 
 There are varying levels of risk when it comes to AWS credentials in CI/CD:
@@ -185,6 +189,61 @@ The script:
   ]
 }
 ```
+
+## IAM Policy Management with the `policies/` Directory
+
+A key feature of this project is the `policies/` directory, which allows you to manage AWS IAM permissions for the OIDC role in a modular, auditable way—across one or many repositories.
+
+- **How it works:**
+  - Place one or more IAM policy JSON files (e.g., `lambda.json`, `s3-readonly.json`) in the `policies/` directory.
+  - When you run `setup_oidc.sh`, the script automatically attaches all policy files in `policies/` to the IAM OIDC role, making them effective for all repositories the role trusts.
+  - You can add, edit, or remove policy files at any time. To apply changes, simply re-run `setup_oidc.sh`.
+
+- **Multi-repo support:**
+  - The IAM role and its attached policies can be used by any number of repositories in your organization, as defined by the trust policy. This enables a single, centrally managed set of AWS permissions for all your CI/CD workflows.
+  - Policy files should only define AWS permissions—not GitHub repo logic. Repository access is controlled by the trust policy, not by these files.
+
+- **Best practices:**
+  - Never scope IAM policies to a single GitHub repository. Instead, use the trust policy to control which repos can assume the role.
+  - Keep your policies minimal and auditable. Remove any files you don't need (principle of least privilege).
+  - See [`policies/README.md`](../policies/README.md) for more details and examples.
+
+**Example:** To grant Lambda permissions, add a `lambda.json` file like:
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "lambda:InvokeFunction",
+        "lambda:UpdateFunctionCode",
+        "lambda:GetFunction"
+      ],
+      "Resource": "arn:aws:lambda:us-east-1:<your-account-id>:function:<your-function-name>"
+    }
+  ]
+}
+```
+
+## Using a Fine-Grained GitHub Personal Access Token (PAT)
+
+To use the OIDC setup script, you **must** provide a GitHub Personal Access Token (PAT) with the correct permissions. For maximum security and compliance, it is strongly recommended to use a [fine-grained PAT](./github_fine_grained_pat_setup.md) with only the minimum required repository access and permissions.
+
+- **Required permissions:**
+  - **Actions:** Read and write
+  - **Variables:** Read and write
+  - **Metadata:** Read-only
+- **Recommended:**
+  - **Administration:** Read and write (for managing webhooks, etc.)
+  - **Contents:** Read-only (unless you want to automate file changes)
+
+See the full guide: [`docs/github_fine_grained_pat_setup.md`](./github_fine_grained_pat_setup.md)
+
+- When running the setup script, pass your fine-grained PAT as the `--github-token` argument.
+- The script uses this token to set repository variables and manage OIDC integration securely across all selected repositories.
+
+> **Tip:** If your organization enforces SSO, remember to authorize the token for SSO access after creation.
 
 ## Using the Tool: GitHub Token Requirements
 

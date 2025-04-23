@@ -1,0 +1,5 @@
+pytest
+pyyaml
+boto3
+requests
+Jinja2>=3.1.0

@@ -7,9 +7,9 @@ This directory contains IAM policy JSON files that are automatically attached to
 
 ## Policy Files
 
-- **lambda.json**: Grants `lambda:InvokeFunction`, `lambda:UpdateFunctionCode`, and `lambda:GetFunction` permissions for the Lambda function `greateightgoals-website-updater` in `us-east-1`. Edit this file to add or remove Lambda permissions as needed.
-- **cloudwatch-logs.json**: (Optional) Grants permissions to create and write to CloudWatch Logs. Only keep if your workflows or Lambda functions require log access.
-- **s3-readonly.json**: (Optional) Grants read-only S3 access to a specified bucket. Edit or remove as needed.
+- **lambda.json**: Example policy for granting Lambda function permissions. Replace `<region>`, `<account>`, and `<function-name>` in the `Resource` field with your actual AWS Lambda function details. Only grant the minimum actions your workflow requires (e.g., `lambda:InvokeFunction`).
+- **cloudwatch-logs.json**: (Optional) Example policy for granting permissions to create and write to CloudWatch Logs. Only include if your workflows or Lambda functions require log access. Update the `Resource` field as needed.
+- **s3-readonly.json**: (Optional) Example policy for granting read-only S3 access to a specified bucket. Replace the bucket name and region in the `Resource` field with your actual S3 bucket details. Only include if your workflow needs S3 read access.
 
 ## Usage
 
@@ -35,7 +35,7 @@ To allow more Lambda actions (e.g., `lambda:GetFunctionConfiguration`), add them
     "lambda:GetFunction",
     "lambda:GetFunctionConfiguration"
   ],
-  "Resource": "arn:aws:lambda:us-east-1:417764041678:function:greateightgoals-website-updater"
+  "Resource": "arn:aws:lambda:<region>:<account>:function:<function-name>"
 }
 ```
 
