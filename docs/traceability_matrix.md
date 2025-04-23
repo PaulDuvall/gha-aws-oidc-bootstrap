@@ -1,5 +1,7 @@
 # Traceability Matrix: GHA AWS OIDC Bootstrap
 
+**Test coverage:** All test files referenced below are located in the [`tests/`](../tests/) directory unless otherwise specified.
+
 | User Story ID | Description | Implementation File(s) | Test File(s) |
 |--------------|-------------|------------------------|--------------|
 | US-100 | OIDC auth for all org repos | run.sh, src/cfn_deploy.py, cloudformation/iam_role.yaml | tests/test_cfn_deploy.py, tests/test_iam_role_template.py |
