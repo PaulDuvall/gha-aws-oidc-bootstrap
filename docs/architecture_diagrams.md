@@ -19,7 +19,7 @@ Generate a diagram that clearly shows the following components and their relatio
 - Show how the setup scripts automate provider/role/policy creation and updates.
 - Indicate where repo variables (e.g., `GHA_OIDC_ROLE_ARN`) are set in GitHub.
 
-## Mermaid Architecture Diagram
+## Architecture Diagram
 
 ```mermaid
 flowchart LR
