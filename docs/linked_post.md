@@ -7,8 +7,8 @@ With a single command, you can:
 - ⚙️ Bootstrap your entire setup in one go
 
 ```bash
-export GITHUB_TOKEN=ghp_XXXXXXXXXXXX
-./run.sh setup \
+export GITHUB_TOKEN=github_pat_XXXXXXXXXXXX
+bash run.sh setup \
   --repos repo1,repo2 \
   --region us-east-1 \
   --github-token $GITHUB_TOKEN
