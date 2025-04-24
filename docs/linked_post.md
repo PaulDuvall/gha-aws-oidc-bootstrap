@@ -8,11 +8,11 @@ With a single command, you can:
 
 ```bash
 export GITHUB_TOKEN=github_pat_XXXXXXXXXXXX
-bash run.sh setup \
-  --repos repo1,repo2 \
-  --region us-east-1 \
-  --github-token $GITHUB_TOKEN
+bash run.sh --github-org <your_org> --region us-east-1 --github-token $GITHUB_TOKEN
 ```
+
+- The script uses the file `allowed_repos.txt` to determine which repositories will be granted access. List each repository (in the format `owner/repo`) on a separate line in that file before running the script.
+- There is no `--repos` argument; repository access is controlled via the trust policy and the contents of `allowed_repos.txt`.
 
 No more static secrets—just short-lived, on-demand AWS credentials that enforce least privilege by design. Whether you’re managing one repo or hundreds, this scales with your needs.
 

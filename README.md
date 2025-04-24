@@ -28,13 +28,12 @@ cd gha-aws-oidc-bootstrap
 You can now use the streamlined, fully automated workflow:
 
 ```bash
-bash run.sh --github-org PaulDuvall --region us-east-1 --github-token <YOUR_GITHUB_TOKEN>
+export GITHUB_TOKEN=github_pat_XXXXXXXXXXXX
+bash run.sh --github-org <your_org> --region us-east-1 --github-token $GITHUB_TOKEN
 ```
 
-- **No need to supply `--oidc-provider-arn`.**
-- The script will automatically discover or create the GitHub OIDC provider in AWS and use its ARN.
-- All tests are run before deployment.
-- If you want to override the OIDC provider ARN, you may still supply `--oidc-provider-arn <ARN>`.
+- The script uses the file `allowed_repos.txt` to determine which repositories will be granted access. List each repository (in the format `owner/repo`) on a separate line in that file before running the script.
+- There is no `--repos` argument; repository access is controlled via the trust policy and the contents of `allowed_repos.txt`.
 
 **GitHub Token Requirements:**
 - [How to create your GitHub token](https://github.com/settings/tokens):

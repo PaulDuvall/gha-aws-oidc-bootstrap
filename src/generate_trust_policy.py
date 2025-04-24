@@ -9,6 +9,16 @@ import json
 
 def get_subs_from_repos(repos_file):
     subs = []
+    if not Path(repos_file).exists():
+        example = repos_file + ".example"
+        msg = (
+            f"\n[ERROR] The repository list file '{repos_file}' was not found.\n"
+            f"Please create this file in your project root and list each allowed repository (in 'org/repo' format) on a separate line.\n"
+            f"You can use '{example}' as a template.\n"
+            f"\nExample entries:\n  PaulDuvall/gha-aws-oidc-bootstrap\n  PaulDuvall/llm-guardian\n  PaulDuvall/owasp_llm_top10\n"
+        )
+        print(msg, file=sys.stderr)
+        sys.exit(2)
     with open(repos_file) as f:
         for line in f:
             repo = line.strip()

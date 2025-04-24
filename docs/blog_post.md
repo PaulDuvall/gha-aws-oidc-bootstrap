@@ -50,30 +50,13 @@ aws configure
 
 ### 3. Run the Setup and Deployment Script
 
-Use the `run.sh` script to automate the setup and deployment process. This script handles CloudFormation stack deployment, OIDC provider configuration, and IAM role setup for your GitHub repositories.
-
 ```bash
-./run.sh setup \
-  --repos <repo1,repo2,...> \
-  --region <aws-region> \
-  --github-token <GITHUB_TOKEN>
+export GITHUB_TOKEN=github_pat_XXXXXXXXXXXX
+bash run.sh --github-org <your_org> --region us-east-1 --github-token $GITHUB_TOKEN
 ```
 
-- `<repo1,repo2,...>`: Comma-separated list of repository names (without org prefix)
-- `<aws-region>`: The AWS region for the IAM role (e.g., us-east-1)
-- `<GITHUB_TOKEN>`: A GitHub personal access token with the necessary permissions
-
-This command will deploy the CloudFormation stack, configure the OIDC trust policy for all listed repositories, and set the `GHA_OIDC_ROLE_ARN` variable in each repository.
-
-**Example:**
-```bash
-./run.sh setup \
-  --repos gha-aws-oidc-bootstrap,llm-guardian \
-  --region us-east-1 \
-  --github-token ghp_xxx...
-```
-
-> **Example:** See [`verify_oidc.yml`](https://github.com/PaulDuvall/gha-aws-oidc-bootstrap/blob/main/.github/workflows/verify_oidc.yml) for a complete workflow using the generated IAM role.
+- The script uses the file `allowed_repos.txt` to determine which repositories will be granted access. List each repository (in the format `owner/repo`) on a separate line in that file before running the script.
+- There is no `--repos` argument; repository access is controlled via the trust policy and the contents of `allowed_repos.txt`.
 
 ### 4. Integrate into Your Workflows
 Reference the generated IAM role in your GitHub Actions workflow:
