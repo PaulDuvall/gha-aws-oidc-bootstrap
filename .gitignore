@@ -90,4 +90,7 @@ Pipfile.lock
 # Local test venv
 .test-venv/
 
+# Ignore generated CloudFormation artifacts
+cloudformation/generated/
+
 allowed_repos.txt
