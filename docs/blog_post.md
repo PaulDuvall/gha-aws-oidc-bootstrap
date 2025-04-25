@@ -67,7 +67,7 @@ You can run the script with or without a GitHub Personal Access Token (PAT):
   bash run.sh --github-org <your_org> --region us-east-1
   ```
 
-**Note:** You do not have to use "manual mode"—the script always provides both options for referencing the IAM Role in your workflow, regardless of whether you use a token.
+**Note:** The script always provides both options for referencing the IAM Role in your workflow, regardless of whether you use a token. There is no separate "manual mode"—you can choose to set a repository variable or reference the ARN directly in your workflow YAML as best fits your needs.
 
 Example for this repository:
 
