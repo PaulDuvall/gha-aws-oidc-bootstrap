@@ -48,22 +48,28 @@ aws configure
 # Ensure your credentials have IAM and CloudFormation permissions
 ```
 
-### 3. Run the Setup and Deployment Script
+### 3. Running the Setup and Deployment Script
 
-You can run the script in two ways:
+You can run the script with or without a GitHub Personal Access Token (PAT):
 
-```bash
-# Option 1: With a GitHub Personal Access Token (PAT) to automatically set repo variables
-export GITHUB_TOKEN=github_pat_XXXXXXXXXXXX
-bash run.sh --github-org <your_org> --region us-east-1 --github-token $GITHUB_TOKEN
+- **With a GitHub PAT:** Automatically sets the repo variable for you (recommended for teams):
 
-# Option 2: Without a GitHub token (manual mode)
-bash run.sh --github-org <your_org> --region us-east-1
-```
+  ```bash
+  export GITHUB_TOKEN=github_pat_XXXXXXXXXXXX
+  bash run.sh --github-org <your_org> --region us-east-1 --github-token $GITHUB_TOKEN
+  ```
 
-After the script completes, you’ll see output with the IAM Role ARN and clear instructions for using it in your GitHub Actions workflow. You can either reference the IAM Role ARN via a repository variable (recommended for teams) or directly in your workflow YAML (suitable for solo use).
+- **Without a GitHub token:**
+  - The script will output the IAM Role ARN and clear instructions for using it in your GitHub Actions workflow.
+  - You can either add the ARN to a repository variable manually (recommended for teams) or reference the ARN directly in your workflow YAML (suitable for solo use).
 
-Example:
+  ```bash
+  bash run.sh --github-org <your_org> --region us-east-1
+  ```
+
+**Note:** You do not have to use "manual mode"—the script always provides both options for referencing the IAM Role in your workflow, regardless of whether you use a token.
+
+Example for this repository:
 
 ```bash
 bash run.sh --github-org PaulDuvall --region us-east-1
