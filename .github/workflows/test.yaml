@@ -27,6 +27,10 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Generate allowed_repos.txt for CI
+        run: |
+          echo "PaulDuvall/gha-aws-oidc-bootstrap" > allowed_repos.txt
+
       - name: Generate CloudFormation template
         run: |
           bash run.sh --github-org PaulDuvall --region us-east-1 --render-only
