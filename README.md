@@ -48,9 +48,9 @@ bash run.sh --github-org PaulDuvall --region us-east-1
 - There is no `--repos` argument; repository access is controlled via the trust policy and the contents of `allowed_repos.txt`.
 
 **GitHub Token Requirements:**
-- [How to create your GitHub token](https://github.com/settings/tokens):
-  - Classic: `repo`, `workflow`, `admin:repo_hook`
-  - Fine-grained: "Actions" (Read/Write), "Variables" (Read/Write), "Secrets" (if needed)
+- Use a GitHub Personal Access Token (PAT) with fine-grained permissions whenever possible.
+- Fine-grained: grant "Actions" (Read/Write), "Variables" (Read/Write), and "Secrets" (if needed).
+- Classic: `repo`, `workflow`, `admin:repo_hook` (only if fine-grained is not available).
 
 ---
 
