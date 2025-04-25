@@ -32,11 +32,11 @@ You can now use the streamlined, fully automated workflow:
 export GITHUB_TOKEN=github_pat_XXXXXXXXXXXX
 bash run.sh --github-org <your_org> --region us-east-1 --github-token $GITHUB_TOKEN
 
-# Option 2: Without a GitHub token (manual mode)
+```bash
 bash run.sh --github-org <your_org> --region us-east-1
 ```
 
-After running the script, you will see clear instructions for using the IAM Role in your GitHub Actions workflow. You can either reference the IAM Role ARN via a repository variable (recommended for teams) or directly in your workflow YAML (suitable for solo use).
+After running the script, you will see clear instructions for using the IAM Role in your GitHub Actions workflow. You can choose to set a repository variable (recommended for teams) or reference the IAM Role ARN directly in your workflow YAML (suitable for solo use), regardless of whether you use a GitHub token.
 
 Example:
 
@@ -54,13 +54,13 @@ bash run.sh --github-org PaulDuvall --region us-east-1
 
 ---
 
-## Summary of Recent Changes (2025-04-23)
+## Architecture and Implementation Notes
 
-- **Switched to Jinja2-based CloudFormation template rendering** for the IAM role and policies, ensuring robust YAML block indentation and eliminating placeholder injection logic.
-- **Removed obsolete scripts and templates**: `inject_trust_policy.py` and `iam_role.base.yaml`.
-- **Policies are now modular and loaded from the `/policies` directory**; the renderer attaches all found policies to the IAM role.
-- **Trust policy is dynamically generated** and injected into the CloudFormation template for least-privilege, multi-repo OIDC integration.
-- **Deployment workflow and scripts updated** for clarity, maintainability, and security.
+- CloudFormation templates for the IAM role and policies are rendered using Jinja2, ensuring robust YAML block indentation and eliminating placeholder injection logic.
+- Obsolete scripts and templates (such as `inject_trust_policy.py` and `iam_role.base.yaml`) have been removed.
+- Policies are modular and loaded from the `/policies` directory; the renderer attaches all found policies to the IAM role.
+- The trust policy is dynamically generated and injected into the CloudFormation template for least-privilege, multi-repo OIDC integration.
+- Deployment workflow and scripts are structured for clarity, maintainability, and security.
 
 ---
 
