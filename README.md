@@ -25,14 +25,14 @@ cd gha-aws-oidc-bootstrap
 
 ### 2. Run the OIDC Setup & Deployment Script
 
-You can now use the streamlined, fully automated workflow:
+You can use the streamlined, fully automated workflow:
 
 ```bash
 # Option 1: With a GitHub Personal Access Token (PAT) to automatically set repo variables
 export GITHUB_TOKEN=github_pat_XXXXXXXXXXXX
 bash run.sh --github-org <your_org> --region us-east-1 --github-token $GITHUB_TOKEN
 
-```bash
+# Option 2: Without a GitHub token
 bash run.sh --github-org <your_org> --region us-east-1
 ```
 
@@ -49,8 +49,7 @@ bash run.sh --github-org PaulDuvall --region us-east-1
 
 **GitHub Token Requirements:**
 - Use a GitHub Personal Access Token (PAT) with fine-grained permissions whenever possible.
-- Fine-grained: grant "Actions" (Read/Write), "Variables" (Read/Write), and "Secrets" (if needed).
-- Classic: `repo`, `workflow`, `admin:repo_hook` (only if fine-grained is not available).
+- Fine-grained: grant `Actions` (**Read/Write**), `Variables` (**Read/Write**), and `Secrets`(if needed).
 
 ---
 
