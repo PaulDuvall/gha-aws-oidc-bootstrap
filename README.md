@@ -36,7 +36,45 @@ bash run.sh --github-org <your_org> --region us-east-1 --github-token $GITHUB_TO
 bash run.sh --github-org <your_org> --region us-east-1
 ```
 
-After running the script, you will see clear instructions for using the IAM Role in your GitHub Actions workflow. You can choose to set a repository variable (recommended for teams) or reference the IAM Role ARN directly in your workflow YAML (suitable for solo use), regardless of whether you use a GitHub token.
+After running the script, you will see clear instructions for using the IAM Role in your GitHub Actions workflow. You can:
+
+- **Option 1: Use a repository variable (recommended for teams)**
+  1. Set a GitHub Actions variable in your repository named `GHA_OIDC_ROLE_ARN` with the IAM Role ARN output by the script.
+  2. Reference that variable in your workflow YAML:
+
+    ```yaml
+    permissions:
+      id-token: write
+      contents: read
+    jobs:
+      deploy:
+        runs-on: ubuntu-latest
+        steps:
+          - name: Assume OIDC Role
+            uses: aws-actions/configure-aws-credentials@v4
+            with:
+              role-to-assume: ${{ secrets.GHA_OIDC_ROLE_ARN }}
+              aws-region: us-east-1
+    ```
+
+- **Option 2: Reference the IAM Role ARN directly (suitable for solo use or quick setup)**
+
+    ```yaml
+    permissions:
+      id-token: write
+      contents: read
+    jobs:
+      deploy:
+        runs-on: ubuntu-latest
+        steps:
+          - name: Assume OIDC Role
+            uses: aws-actions/configure-aws-credentials@v4
+            with:
+              role-to-assume: arn:aws:iam::123456789012:role/GitHubActionsOIDCRole
+              aws-region: us-east-1
+    ```
+
+Replace the ARN above with the value output by the script. Both approaches are always available, regardless of whether you use a GitHub token.
 
 Example:
 
@@ -48,7 +86,7 @@ bash run.sh --github-org PaulDuvall --region us-east-1
 - There is no `--repos` argument; repository access is controlled via the trust policy and the contents of `allowed_repos.txt`.
 
 **GitHub Token Requirements:**
-- Use a GitHub Personal Access Token (PAT) with fine-grained permissions whenever possible.
+- Use a GitHub Personal Access Token (PAT) with fine-grained permissions.
 - Fine-grained: grant `Actions` (**Read/Write**), `Variables` (**Read/Write**), and `Secrets`(if needed).
 
 ---
