@@ -18,19 +18,22 @@ def set_repo_variable(org, repo, var_name, var_value, github_token):
     }
     # Try PATCH (update) first, fall back to POST (create)
     resp = requests.patch(url, headers=headers, json={"value": var_value})
-    if not resp.ok:
-        print(f"[ERROR] PATCH failed for {org}/{repo}: {resp.status_code} {resp.text}", file=sys.stderr)
+    if resp.ok:
+        print(f"✅ Updated variable '{var_name}' for {org}/{repo}.")
+        return True
     if resp.status_code == 404:
         # Variable does not exist, create it
         create_url = f"{GITHUB_API}/repos/{org}/{repo}/actions/variables"
         resp = requests.post(create_url, headers=headers, json={"name": var_name, "value": var_value})
-        if not resp.ok:
-            print(f"[ERROR] POST failed for {org}/{repo}: {resp.status_code} {resp.text}", file=sys.stderr)
-    if not resp.ok:
-        print(f"Failed to set {var_name} for {org}/{repo}: {resp.status_code} {resp.text}", file=sys.stderr)
+        if resp.ok:
+            print(f"✅ Created variable '{var_name}' for {org}/{repo}.")
+            return True
+        else:
+            print(f"❌ Failed to create variable '{var_name}' for {org}/{repo}: {resp.status_code} {resp.text}", file=sys.stderr)
+            return False
+    else:
+        print(f"❌ Failed to update variable '{var_name}' for {org}/{repo}: {resp.status_code} {resp.text}", file=sys.stderr)
         return False
-    print(f"Set {var_name} for {org}/{repo}")
-    return True
 
 
 def main():

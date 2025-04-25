@@ -11,7 +11,7 @@ def ignore_unknown(loader, tag_suffix, node):
 
 yaml.SafeLoader.add_multi_constructor('!', ignore_unknown)
 
-TEMPLATE_PATH = Path(__file__).parent.parent / "cloudformation" / "iam_role.yaml"
+TEMPLATE_PATH = Path(__file__).parent.parent / "cloudformation" / "generated" / "iam_role.yaml"
 
 def test_template_exists():
     assert TEMPLATE_PATH.exists(), f"{TEMPLATE_PATH} does not exist"
@@ -34,7 +34,7 @@ def test_attaches_all_project_policies():
     import yaml
     policies_dir = Path(__file__).parent.parent / "policies"
     project_policy_files = {p.name for p in policies_dir.iterdir() if p.suffix == ".json"}
-    template_path = Path(__file__).parent.parent / "cloudformation" / "iam_role.yaml"
+    template_path = Path(__file__).parent.parent / "cloudformation" / "generated" / "iam_role.yaml"
     with template_path.open() as f:
         data = yaml.safe_load(f)
     role = data["Resources"]["GitHubActionsOIDCRole"]
@@ -51,7 +51,7 @@ def test_policy_documents_are_inlined():
     import yaml
     import json
     policies_dir = Path(__file__).parent.parent / "policies"
-    template_path = Path(__file__).parent.parent / "cloudformation" / "iam_role.yaml"
+    template_path = Path(__file__).parent.parent / "cloudformation" / "generated" / "iam_role.yaml"
     with template_path.open() as f:
         data = yaml.safe_load(f)
     role = data["Resources"]["GitHubActionsOIDCRole"]

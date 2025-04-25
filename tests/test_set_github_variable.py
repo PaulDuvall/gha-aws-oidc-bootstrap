@@ -9,7 +9,7 @@ from pathlib import Path
 
 import src.set_github_variable as set_gv
 
-def test_set_repo_variable_success(monkeypatch):
+def test_set_repo_variable_success(monkeypatch, capsys):
     # Patch requests.patch to simulate update success
     mock_patch = MagicMock(return_value=MagicMock(status_code=200, ok=True))
     monkeypatch.setattr(set_gv.requests, "patch", mock_patch)
@@ -17,8 +17,10 @@ def test_set_repo_variable_success(monkeypatch):
     monkeypatch.setattr(set_gv.requests, "post", MagicMock())
     assert set_gv.set_repo_variable("org", "repo", "VAR", "VAL", "token") is True
     mock_patch.assert_called_once()
+    out = capsys.readouterr().out
+    assert "✅ Updated variable 'VAR' for org/repo." in out
 
-def test_set_repo_variable_create(monkeypatch):
+def test_set_repo_variable_create(monkeypatch, capsys):
     # Patch requests.patch to simulate 404 (not found)
     mock_patch = MagicMock(return_value=MagicMock(status_code=404, ok=False))
     monkeypatch.setattr(set_gv.requests, "patch", mock_patch)
@@ -28,8 +30,10 @@ def test_set_repo_variable_create(monkeypatch):
     assert set_gv.set_repo_variable("org", "repo", "VAR", "VAL", "token") is True
     mock_patch.assert_called_once()
     mock_post.assert_called_once()
+    out = capsys.readouterr().out
+    assert "✅ Created variable 'VAR' for org/repo." in out
 
-def test_set_repo_variable_failure(monkeypatch):
+def test_set_repo_variable_failure(monkeypatch, capsys):
     # Patch requests.patch and post to simulate failure
     mock_patch = MagicMock(return_value=MagicMock(status_code=500, ok=False, text="error"))
     monkeypatch.setattr(set_gv.requests, "patch", mock_patch)
@@ -39,3 +43,5 @@ def test_set_repo_variable_failure(monkeypatch):
     mock_patch.assert_called_once()
     # Should not call post unless 404
     mock_post.assert_not_called()
+    err = capsys.readouterr().err
+    assert "❌ Failed to update variable 'VAR' for org/repo" in err

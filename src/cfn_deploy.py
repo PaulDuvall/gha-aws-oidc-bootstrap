@@ -8,7 +8,7 @@ import argparse
 import sys
 import boto3
 
-TEMPLATE_PATH = Path(__file__).parent.parent / "cloudformation" / "iam_role.yaml"
+TEMPLATE_PATH = Path(__file__).parent.parent / "cloudformation" / "generated" / "iam_role.yaml"
 STACK_NAME = "gha-aws-oidc-bootstrap"
 DEFAULT_REGION = "us-east-1"
 
@@ -52,6 +52,30 @@ def get_or_create_oidc_provider(region):
         ThumbprintList=thumbprints
     )
     return create_resp["OpenIDConnectProviderArn"]
+
+def print_manual_github_oidc_instructions(role_arn, github_org, repo):
+    print("\nTo use this IAM Role in your GitHub Actions workflow:\n")
+    print("Option 1: Use a GitHub Actions variable (recommended for teams)")
+    print("-------------------------------------------------------------")
+    print("1. Go to your repository on GitHub.")
+    print("2. Navigate to Settings → Secrets and variables → Actions → Variables.")
+    print("3. Add a new variable:")
+    print("   Name: GHA_OIDC_ROLE_ARN")
+    print(f"   Value: {role_arn}\n")
+    if github_org and repo:
+        print(f"4. Or use this direct link: https://github.com/{github_org}/{repo}/settings/variables/actions\n")
+    print("5. In your workflow YAML, reference the variable:\n")
+    print("   - uses: aws-actions/configure-aws-credentials@v4")
+    print("     with:")
+    print("       role-to-assume: ${{ vars.GHA_OIDC_ROLE_ARN }}")
+    print("       aws-region: us-east-1\n")
+    print("Option 2: Reference the IAM Role ARN directly (simple for solo use)")
+    print("-------------------------------------------------------------")
+    print("In your workflow YAML, you can also hardcode the ARN directly:")
+    print("   - uses: aws-actions/configure-aws-credentials@v4")
+    print("     with:")
+    print(f"       role-to-assume: {role_arn}")
+    print("       aws-region: us-east-1\n")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Deploy IAM role CloudFormation stack for GitHub Actions OIDC")
@@ -99,6 +123,18 @@ if __name__ == "__main__":
                 "--repos-file", "allowed_repos.txt"
             ], check=False)
         else:
-            print("GitHub token not provided; skipping setting repo variable.")
+            repo = None
+            # Try to get repo from allowed_repos.txt if available
+            allowed_repos_path = Path(__file__).parent.parent / 'allowed_repos.txt'
+            if allowed_repos_path.exists():
+                with allowed_repos_path.open() as f:
+                    for line in f:
+                        if line.strip() and not line.startswith('#'):
+                            if '/' in line:
+                                org, repo_candidate = line.strip().split('/', 1)
+                                if org == args.github_org:
+                                    repo = repo_candidate
+                                    break
+            print_manual_github_oidc_instructions(role_arn, args.github_org, repo)
     else:
         print("IAM Role ARN not found in stack outputs.")

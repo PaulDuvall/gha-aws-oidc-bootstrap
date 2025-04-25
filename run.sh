@@ -68,7 +68,8 @@ if [ "$RUN_TESTS" = true ]; then
 fi
 
 # Always generate trust policy before deploying stack
-python3 src/generate_trust_policy.py --repos-file allowed_repos.txt --output cloudformation/trust_policy.json
+mkdir -p cloudformation/generated
+python3 src/generate_trust_policy.py --repos-file allowed_repos.txt --output cloudformation/generated/trust_policy.json
 # Render IAM Role CloudFormation template from Jinja2
 python3 src/render_iam_template.py
 

@@ -5,7 +5,7 @@ User Story: US-XXX (see docs/user_stories.md)
 import subprocess
 from pathlib import Path
 
-CLOUDFORMATION_TEMPLATE = Path(__file__).parent.parent / "cloudformation" / "iam_role.yaml"
+CLOUDFORMATION_TEMPLATE = Path(__file__).parent.parent / "cloudformation" / "generated" / "iam_role.yaml"
 
 def validate_template():
     """

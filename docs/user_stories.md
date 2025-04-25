@@ -95,7 +95,7 @@ This document contains user stories for the secure, automated setup of AWS OIDC 
 - All user stories use the US-XXX format and have acceptance criteria.
 - Code comments reference user stories where relevant.
 - Semantic versioning and commit message standards are followed.
-- Tests are written before implementation (TDD), and coverage is tracked.
+- Tests are written before implementation (TDD), and coverage is tracked. All tests must be run using `bash run.sh --test`.
 - Documentation is updated as features are added or changed.
 
 ---

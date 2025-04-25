@@ -29,7 +29,7 @@ def get_subs_from_repos(repos_file):
 def main():
     parser = argparse.ArgumentParser(description="Generate a GitHub OIDC trust policy JSON from allowed_repos.txt")
     parser.add_argument("--repos-file", default="allowed_repos.txt", help="File listing repos (one per line)")
-    parser.add_argument("--output", default="cloudformation/trust_policy.json", help="Output JSON file")
+    parser.add_argument("--output", default="cloudformation/generated/trust_policy.json", help="Output JSON file")
     args = parser.parse_args()
     subs = get_subs_from_repos(args.repos_file)
     trust_policy = {

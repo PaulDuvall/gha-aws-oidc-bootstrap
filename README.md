@@ -28,8 +28,20 @@ cd gha-aws-oidc-bootstrap
 You can now use the streamlined, fully automated workflow:
 
 ```bash
+# Option 1: With a GitHub Personal Access Token (PAT) to automatically set repo variables
 export GITHUB_TOKEN=github_pat_XXXXXXXXXXXX
 bash run.sh --github-org <your_org> --region us-east-1 --github-token $GITHUB_TOKEN
+
+# Option 2: Without a GitHub token (manual mode)
+bash run.sh --github-org <your_org> --region us-east-1
+```
+
+After running the script, you will see clear instructions for using the IAM Role in your GitHub Actions workflow. You can either reference the IAM Role ARN via a repository variable (recommended for teams) or directly in your workflow YAML (suitable for solo use).
+
+Example:
+
+```bash
+bash run.sh --github-org PaulDuvall --region us-east-1
 ```
 
 - The script uses the file `allowed_repos.txt` to determine which repositories will be granted access. List each repository (in the format `owner/repo`) on a separate line in that file before running the script.

@@ -50,13 +50,24 @@ aws configure
 
 ### 3. Run the Setup and Deployment Script
 
+You can run the script in two ways:
+
 ```bash
+# Option 1: With a GitHub Personal Access Token (PAT) to automatically set repo variables
 export GITHUB_TOKEN=github_pat_XXXXXXXXXXXX
 bash run.sh --github-org <your_org> --region us-east-1 --github-token $GITHUB_TOKEN
+
+# Option 2: Without a GitHub token (manual mode)
+bash run.sh --github-org <your_org> --region us-east-1
 ```
 
-- The script uses the file `allowed_repos.txt` to determine which repositories will be granted access. List each repository (in the format `owner/repo`) on a separate line in that file before running the script.
-- There is no `--repos` argument; repository access is controlled via the trust policy and the contents of `allowed_repos.txt`.
+After the script completes, you’ll see output with the IAM Role ARN and clear instructions for using it in your GitHub Actions workflow. You can either reference the IAM Role ARN via a repository variable (recommended for teams) or directly in your workflow YAML (suitable for solo use).
+
+Example:
+
+```bash
+bash run.sh --github-org PaulDuvall --region us-east-1
+```
 
 ### 4. Integrate into Your Workflows
 Reference the generated IAM role in your GitHub Actions workflow:
