@@ -130,7 +130,6 @@ This project automatically generates a flexible IAM trust policy for GitHub Acti
 ---
 
 ## Best Practices
-- Never scope policies to a single GitHub repository.
 - Keep policies minimal and auditable.
 - Remove or archive policy files you do not need (principle of least privilege).
 - Review `policies/README.md` for more details and examples.
