@@ -92,6 +92,25 @@ steps:
 ```
 This workflow step configures AWS credentials for your GitHub Actions job using the OIDC role you just set up. The `role-to-assume` references the variable that was automatically set in your repository by the `run.sh` script.
 
+### Option 2: Reference the IAM Role ARN directly (suitable for solo use or quick setup)
+
+```yaml
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assume OIDC Role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/GitHubActionsOIDCRole
+          aws-region: us-east-1
+```
+
+Replace the ARN above with the value output by the script. Both approaches are always available, regardless of whether you use a GitHub token.
+
 > **Example:** See [`verify_oidc.yml`](https://github.com/PaulDuvall/gha-aws-oidc-bootstrap/blob/main/.github/workflows/verify_oidc.yml) for a complete workflow using the generated IAM role.
 >
 > For more details, see the [`aws-actions/configure-aws-credentials`](https://github.com/aws-actions/configure-aws-credentials) action and [GitHub Actions OIDC with AWS](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-cloud-providers) documentation.
