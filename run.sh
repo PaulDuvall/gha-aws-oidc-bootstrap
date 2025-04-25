@@ -41,6 +41,7 @@ OIDC_PROVIDER_ARN=""
 
 # Parse arguments
 RUN_TESTS=false
+RENDER_ONLY=false
 while [[ $# -gt 0 ]]; do
   case $1 in
     --github-org)
@@ -53,6 +54,8 @@ while [[ $# -gt 0 ]]; do
       OIDC_PROVIDER_ARN="$2"; shift 2;;
     --test|--tests)
       RUN_TESTS=true; shift;;
+    --render-only)
+      RENDER_ONLY=true; shift;;
     *)
       echo "Unknown argument: $1" >&2; exit 1;;
   esac
@@ -61,17 +64,21 @@ done
 # Set PYTHONPATH to ensure src/ is always importable
 export PYTHONPATH="$(pwd)"
 
+# Always generate trust policy and template
+mkdir -p cloudformation/generated
+python3 src/generate_trust_policy.py --repos-file allowed_repos.txt --output cloudformation/generated/trust_policy.json
+python3 src/render_iam_template.py
+
+if [ "$RENDER_ONLY" = true ]; then
+  echo "Rendered trust policy and IAM template only."
+  exit 0
+fi
+
 if [ "$RUN_TESTS" = true ]; then
   echo "Running all tests via pytest..."
   pytest -v
   exit $?
 fi
-
-# Always generate trust policy before deploying stack
-mkdir -p cloudformation/generated
-python3 src/generate_trust_policy.py --repos-file allowed_repos.txt --output cloudformation/generated/trust_policy.json
-# Render IAM Role CloudFormation template from Jinja2
-python3 src/render_iam_template.py
 
 # Build up the command
 CFN_ARGS=(--github-org "$GITHUB_ORG" --region "$REGION" --github-token "$GITHUB_TOKEN")
