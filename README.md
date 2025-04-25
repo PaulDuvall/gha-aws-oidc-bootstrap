@@ -76,12 +76,6 @@ After running the script, you will see clear instructions for using the IAM Role
 
 Replace the ARN above with the value output by the script. Both approaches are always available, regardless of whether you use a GitHub token.
 
-Example:
-
-```bash
-bash run.sh --github-org PaulDuvall --region us-east-1
-```
-
 - The script uses the file `allowed_repos.txt` to determine which repositories will be granted access. List each repository (in the format `owner/repo`) on a separate line in that file before running the script.
 - There is no `--repos` argument; repository access is controlled via the trust policy and the contents of `allowed_repos.txt`.
 
