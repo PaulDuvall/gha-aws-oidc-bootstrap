@@ -1,5 +1,6 @@
 """
 cfn_stack.py: Minimal CloudFormation template linter/validator
+# Trigger GHA build: trivial change
 User Story: US-XXX (see docs/user_stories.md)
 """
 import subprocess
