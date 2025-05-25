@@ -1,5 +1,6 @@
 """
 cfn_deploy.py: Minimal CloudFormation stack deployment automation
+# Trigger GHA build: trivial change
 User Story: US-XXX (see docs/user_stories.md)
 """
 import subprocess
