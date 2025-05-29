@@ -8,7 +8,7 @@ Resources:
   GitHubActionsOIDCRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub github-actions-oidc-role-${AWS::StackName}
+      RoleName: gha-oidc-{{ owner }}-{{ repo }}
       AssumeRolePolicyDocument:
 {{ trust_policy | to_nice_yaml_block(8) }}
       Policies:

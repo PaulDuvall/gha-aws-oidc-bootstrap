@@ -47,55 +47,83 @@ def print_github_oidc_instructions(role_arn, owner, repo):
     print("       aws-region: us-east-1\n")
 
 def main():
-    parser = argparse.ArgumentParser(description="Render IAM Role CloudFormation template and/or print IAM Role info.")
-    parser.add_argument('--owner', type=str, help='GitHub repository owner/org')
-    parser.add_argument('--repo', type=str, help='GitHub repository name')
-    parser.add_argument('--account-id', type=str, default='123456789012', help='AWS Account ID (for output example)')
-    parser.add_argument('--role-name', type=str, default=None, help='IAM Role name (default: GHA_OIDC_ROLE_<OWNER>_<REPO>_ROLE)')
-    parser.add_argument('--github-token', type=str, help='GitHub PAT for automation (optional)')
-    parser.add_argument('--policy-file', type=str, help='Path to custom policy JSON file to attach to the OIDC role')
-    parser.add_argument('--output', type=str, default='cloudformation/generated/iam_role.yaml', help='Output path for rendered template')
-    args = parser.parse_args()
+    try:
+        parser = argparse.ArgumentParser(description="Render IAM Role CloudFormation template and/or print IAM Role info.")
+        parser.add_argument('--owner', type=str, help='GitHub repository owner/org')
+        parser.add_argument('--repo', type=str, help='GitHub repository name')
+        parser.add_argument('--account-id', type=str, default='123456789012', help='AWS Account ID (for output example)')
+        parser.add_argument('--oidc-provider-arn', type=str, default='', help='OIDC Provider ARN')
+        parser.add_argument('--policy-file', type=str, help='Path to custom policy JSON file')
+        parser.add_argument('--output', type=str, default='cloudformation/generated/iam_role.yaml', help='Output path for rendered template')
+        parser.add_argument('--github-token', type=str, help='GitHub PAT for automation (optional)')
+        parser.add_argument('--role-name', type=str, default=None, help='IAM Role name (optional override)')
+        args = parser.parse_args()
 
-    # If no --github-token, print instructions and exit (TDD: manual mode)
-    if not args.github_token and args.owner and args.repo:
-        role_name = args.role_name or f"GHA_OIDC_ROLE_{args.owner.upper()}_{args.repo.upper()}_ROLE"
-        role_arn = f"arn:aws:iam::{args.account_id}:role/{role_name}"
-        print(f"\nIAM Role ARN: {role_arn}")
-        print_github_oidc_instructions(role_arn, args.owner, args.repo)
-        return
+        print(f"DEBUG: owner={args.owner}, repo={args.repo}, output={args.output}", flush=True)
 
-    env = Environment(
-        loader=FileSystemLoader('cloudformation'),
-        trim_blocks=True,
-        lstrip_blocks=True
-    )
-    env.filters['to_nice_yaml_block'] = to_nice_yaml_block
-    template = env.get_template('iam_role.template.j2')
+        # Load trust policy
+        trust_policy_path = 'cloudformation/generated/trust_policy.json'
+        print(f"DEBUG: Loading trust policy from {trust_policy_path}", flush=True)
+        with open(trust_policy_path) as f:
+            trust_policy = json.load(f)
 
-    with open('cloudformation/generated/trust_policy.json') as f:
-        trust_policy = json.load(f)
+        # Load policies
+        policies = []
+        policies_dir = os.path.join(os.path.dirname(__file__), '../policies')
+        print(f"DEBUG: Loading policies from {policies_dir}", flush=True)
+        for policy_file in os.listdir(policies_dir):
+            if policy_file.endswith('.json'):
+                with open(os.path.join(policies_dir, policy_file)) as pf:
+                    policy_doc = json.load(pf)
+                policies.append({
+                    'name': policy_file,
+                    'document': policy_doc
+                })
 
-    policies = load_policies('policies')
+        # Optionally add a custom policy
+        if args.policy_file:
+            print(f"DEBUG: Adding custom policy from {args.policy_file}", flush=True)
+            with open(args.policy_file) as pf:
+                custom_policy_doc = json.load(pf)
+            policies.append({
+                'name': 'CustomPolicy',
+                'document': custom_policy_doc
+            })
 
-    # Inject custom policy if provided
-    if args.policy_file:
-        with open(args.policy_file) as pf:
-            custom_policy_doc = json.load(pf)
-        policies.append({
-            'name': 'CustomPolicy',
-            'document': custom_policy_doc
-        })
+        template_path = os.path.join(os.path.dirname(__file__), '../cloudformation/iam_role.template.j2')
+        print(f"DEBUG: Loading template from {template_path}", flush=True)
+        env = Environment(
+            loader=FileSystemLoader('cloudformation'),
+            trim_blocks=True,
+            lstrip_blocks=True
+        )
+        env.filters['to_nice_yaml_block'] = to_nice_yaml_block
+        template = env.get_template('iam_role.template.j2')
 
-    rendered = template.render(
-        trust_policy=trust_policy,
-        policies=policies
-    )
+        print("DEBUG: Rendering template and writing to output...", flush=True)
+        rendered = template.render(
+            trust_policy=trust_policy,
+            policies=policies,
+            owner=args.owner,
+            repo=args.repo
+        )
 
-    # Write to specified output file
-    os.makedirs(os.path.dirname(args.output), exist_ok=True)
-    with open(args.output, 'w') as f:
-        f.write(rendered)
+        # Write to specified output file
+        os.makedirs(os.path.dirname(args.output), exist_ok=True)
+        with open(args.output, 'w') as f:
+            f.write(rendered)
+        print("DEBUG: Successfully wrote IAM template.", flush=True)
+
+        # If no --github-token, print instructions and exit (TDD: manual mode)
+        if not args.github_token and args.owner and args.repo:
+            role_name = args.role_name or f"GHA_OIDC_ROLE_{args.owner.upper()}_{args.repo.upper()}_ROLE"
+            role_arn = f"arn:aws:iam::{args.account_id}:role/{role_name}"
+            print(f"\nIAM Role ARN: {role_arn}")
+            print_github_oidc_instructions(role_arn, args.owner, args.repo)
+            return
+    except Exception as e:
+        print(f"ERROR: {e}", flush=True)
+        raise
 
 if __name__ == '__main__':
     main()

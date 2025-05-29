@@ -4,6 +4,7 @@
 # Usage: bash run.sh
 
 set -euo pipefail
+set -x
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PYTHON_VERSION="3.11"
@@ -35,6 +36,7 @@ export PYTHONPATH="$PROJECT_ROOT/src"
 
 # Default values
 GITHUB_ORG=""
+GITHUB_REPO=""
 REGION="us-east-1"
 GITHUB_TOKEN=""
 OIDC_PROVIDER_ARN=""
@@ -49,6 +51,8 @@ while [[ $# -gt 0 ]]; do
   case $1 in
     --github-org)
       GITHUB_ORG="$2"; shift 2;;
+    --github-repo)
+      GITHUB_REPO="$2"; shift 2;;
     --region)
       REGION="$2"; shift 2;;
     --github-token)
@@ -81,7 +85,8 @@ if [[ -n "$OUTPUT_FILE" ]]; then
   PYTHON_ARGS="$PYTHON_ARGS --output $OUTPUT_FILE"
 fi
 python3 src/generate_trust_policy.py --repos-file allowed_repos.txt --output cloudformation/generated/trust_policy.json
-python3 src/render_iam_template.py $PYTHON_ARGS
+# Pass owner and repo to template renderer
+python3 src/render_iam_template.py --owner "$GITHUB_ORG" --repo "$GITHUB_REPO" $PYTHON_ARGS
 
 if [ "$RENDER_ONLY" = true ]; then
   echo "Rendered trust policy and IAM template only."
@@ -95,7 +100,7 @@ if [ "$RUN_TESTS" = true ]; then
 fi
 
 # Build up the command
-CFN_ARGS=(--github-org "$GITHUB_ORG" --region "$REGION" --github-token "$GITHUB_TOKEN")
+CFN_ARGS=(--github-org "$GITHUB_ORG" --github-repo "$GITHUB_REPO" --region "$REGION" --github-token "$GITHUB_TOKEN")
 if [[ -n "$OIDC_PROVIDER_ARN" ]]; then
   CFN_ARGS+=(--oidc-provider-arn "$OIDC_PROVIDER_ARN")
 fi

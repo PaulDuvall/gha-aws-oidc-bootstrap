@@ -10,7 +10,7 @@ import sys
 import boto3
 
 TEMPLATE_PATH = Path(__file__).parent.parent / "cloudformation" / "generated" / "iam_role.yaml"
-STACK_NAME = "gha-aws-oidc-bootstrap"
+STACK_NAME = None  # Will be set dynamically
 DEFAULT_REGION = "us-east-1"
 
 def deploy_stack(region=DEFAULT_REGION, oidc_provider_arn=None):
@@ -81,11 +81,22 @@ def print_manual_github_oidc_instructions(role_arn, github_org, repo):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Deploy IAM role CloudFormation stack for GitHub Actions OIDC")
     parser.add_argument("--github-org", required=False, help="GitHub organization name")
+    parser.add_argument("--github-repo", required=False, help="GitHub repository name")
     parser.add_argument("--region", default=DEFAULT_REGION, help="AWS region")
     parser.add_argument("--github-token", required=False, help="GitHub fine-grained PAT token")
     parser.add_argument("--oidc-provider-arn", required=False, help="OIDC provider ARN for GitHub Actions")
     args = parser.parse_args()
+
+    # Compose unique stack name
+    if args.github_org and args.github_repo:
+        STACK_NAME = f"gha-aws-oidc-{args.github_org.lower()}-{args.github_repo.lower()}"
+    elif args.github_org:
+        STACK_NAME = f"gha-aws-oidc-{args.github_org.lower()}"
+    else:
+        STACK_NAME = "gha-aws-oidc-bootstrap"
+
     print(f"GitHub Org: {args.github_org}")
+    print(f"GitHub Repo: {args.github_repo}")
     print(f"Region: {args.region}")
     print(f"GitHub Token Provided: {'yes' if args.github_token else 'no'}")
     if args.oidc_provider_arn:
@@ -94,7 +105,14 @@ if __name__ == "__main__":
     else:
         oidc_provider_arn = get_or_create_oidc_provider(args.region)
         print(f"OIDC Provider ARN: {oidc_provider_arn}")
-    res = deploy_stack(region=args.region, oidc_provider_arn=oidc_provider_arn)
+    res = subprocess.run([
+        "aws", "cloudformation", "deploy",
+        "--stack-name", STACK_NAME,
+        "--template-file", str(TEMPLATE_PATH),
+        "--region", args.region,
+        "--parameter-overrides", f"OIDCProviderArn={oidc_provider_arn}",
+        "--capabilities", "CAPABILITY_NAMED_IAM"
+    ], capture_output=True, text=True)
     print(res.stdout)
     if res.returncode != 0:
         print(res.stderr)
@@ -124,18 +142,7 @@ if __name__ == "__main__":
                 "--repos-file", "allowed_repos.txt"
             ], check=False)
         else:
-            repo = None
-            # Try to get repo from allowed_repos.txt if available
-            allowed_repos_path = Path(__file__).parent.parent / 'allowed_repos.txt'
-            if allowed_repos_path.exists():
-                with allowed_repos_path.open() as f:
-                    for line in f:
-                        if line.strip() and not line.startswith('#'):
-                            if '/' in line:
-                                org, repo_candidate = line.strip().split('/', 1)
-                                if org == args.github_org:
-                                    repo = repo_candidate
-                                    break
+            repo = args.github_repo
             print_manual_github_oidc_instructions(role_arn, args.github_org, repo)
     else:
         print("IAM Role ARN not found in stack outputs.")
