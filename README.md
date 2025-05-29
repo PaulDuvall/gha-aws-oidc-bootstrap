@@ -53,7 +53,7 @@ After running the script, you will see clear instructions for using the IAM Role
           - name: Assume OIDC Role
             uses: aws-actions/configure-aws-credentials@v4
             with:
-              role-to-assume: ${{ secrets.GHA_OIDC_ROLE_ARN }}
+              role-to-assume: ${{ vars.GHA_OIDC_ROLE_ARN }}
               aws-region: us-east-1
     ```
 

@@ -53,6 +53,8 @@ def main():
     parser.add_argument('--account-id', type=str, default='123456789012', help='AWS Account ID (for output example)')
     parser.add_argument('--role-name', type=str, default=None, help='IAM Role name (default: GHA_OIDC_ROLE_<OWNER>_<REPO>_ROLE)')
     parser.add_argument('--github-token', type=str, help='GitHub PAT for automation (optional)')
+    parser.add_argument('--policy-file', type=str, help='Path to custom policy JSON file to attach to the OIDC role')
+    parser.add_argument('--output', type=str, default='cloudformation/generated/iam_role.yaml', help='Output path for rendered template')
     args = parser.parse_args()
 
     # If no --github-token, print instructions and exit (TDD: manual mode)
@@ -76,14 +78,23 @@ def main():
 
     policies = load_policies('policies')
 
+    # Inject custom policy if provided
+    if args.policy_file:
+        with open(args.policy_file) as pf:
+            custom_policy_doc = json.load(pf)
+        policies.append({
+            'name': 'CustomPolicy',
+            'document': custom_policy_doc
+        })
+
     rendered = template.render(
         trust_policy=trust_policy,
         policies=policies
     )
 
-    # Write to generated folder instead of cloudformation root
-    os.makedirs('cloudformation/generated', exist_ok=True)
-    with open('cloudformation/generated/iam_role.yaml', 'w') as f:
+    # Write to specified output file
+    os.makedirs(os.path.dirname(args.output), exist_ok=True)
+    with open(args.output, 'w') as f:
         f.write(rendered)
 
 if __name__ == '__main__':

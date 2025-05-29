@@ -42,6 +42,9 @@ OIDC_PROVIDER_ARN=""
 # Parse arguments
 RUN_TESTS=false
 RENDER_ONLY=false
+POLICY_FILE=""
+OUTPUT_FILE="cloudformation/generated/iam_role.yaml"
+
 while [[ $# -gt 0 ]]; do
   case $1 in
     --github-org)
@@ -52,6 +55,10 @@ while [[ $# -gt 0 ]]; do
       GITHUB_TOKEN="$2"; shift 2;;
     --oidc-provider-arn)
       OIDC_PROVIDER_ARN="$2"; shift 2;;
+    --policy-file)
+      POLICY_FILE="$2"; shift 2;;
+    --output)
+      OUTPUT_FILE="$2"; shift 2;;
     --test|--tests)
       RUN_TESTS=true; shift;;
     --render-only)
@@ -66,8 +73,15 @@ export PYTHONPATH="$(pwd)"
 
 # Always generate trust policy and template
 mkdir -p cloudformation/generated
+PYTHON_ARGS=""
+if [[ -n "$POLICY_FILE" ]]; then
+  PYTHON_ARGS="$PYTHON_ARGS --policy-file $POLICY_FILE"
+fi
+if [[ -n "$OUTPUT_FILE" ]]; then
+  PYTHON_ARGS="$PYTHON_ARGS --output $OUTPUT_FILE"
+fi
 python3 src/generate_trust_policy.py --repos-file allowed_repos.txt --output cloudformation/generated/trust_policy.json
-python3 src/render_iam_template.py
+python3 src/render_iam_template.py $PYTHON_ARGS
 
 if [ "$RENDER_ONLY" = true ]; then
   echo "Rendered trust policy and IAM template only."
