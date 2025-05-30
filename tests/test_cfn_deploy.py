@@ -33,7 +33,7 @@ def test_deploy_stack_invokes_aws(monkeypatch):
             stderr = ""
         return Result()
     monkeypatch.setattr(subprocess, "run", fake_run)
-    result = cfn_deploy.deploy_stack()
+    result = cfn_deploy.deploy_stack("test-stack")
     assert calls.get('called'), "subprocess.run was not called"
     assert result.returncode == 0
     assert "Deployment successful" in result.stdout

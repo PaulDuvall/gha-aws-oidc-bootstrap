@@ -9,19 +9,23 @@ import sys
 import boto3
 
 TEMPLATE_PATH = Path(__file__).parent.parent / "cloudformation" / "generated" / "iam_role.yaml"
-STACK_NAME = None  # Will be set dynamically
 DEFAULT_REGION = "us-east-1"
 
-def deploy_stack(region=DEFAULT_REGION, oidc_provider_arn=None):
+def deploy_stack(stack_name, region=DEFAULT_REGION, oidc_provider_arn=None):
     """
     Deploys the CloudFormation stack using AWS CLI.
-    Returns subprocess.CompletedProcess.
+    Args:
+        stack_name (str): Name of the CloudFormation stack to deploy.
+        region (str): AWS region to deploy in.
+        oidc_provider_arn (str, optional): OIDC provider ARN.
+    Returns:
+        subprocess.CompletedProcess
     """
     if not TEMPLATE_PATH.exists():
         raise FileNotFoundError(f"Template not found: {TEMPLATE_PATH}")
     result = subprocess.run([
         "aws", "cloudformation", "deploy",
-        "--stack-name", STACK_NAME,
+        "--stack-name", stack_name,
         "--template-file", str(TEMPLATE_PATH),
         "--region", region,
         "--parameter-overrides", f"OIDCProviderArn={oidc_provider_arn}",
