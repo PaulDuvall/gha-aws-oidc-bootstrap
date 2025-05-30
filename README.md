@@ -30,11 +30,15 @@ You can use the streamlined, fully automated workflow:
 ```bash
 # Option 1: With a GitHub Personal Access Token (PAT) to automatically set repo variables
 export GITHUB_TOKEN=github_pat_XXXXXXXXXXXX
-bash run.sh --github-org <your_org> --region us-east-1 --github-token $GITHUB_TOKEN
+bash run.sh --github-org <your_org> --github-repo <your_repo> --region us-east-1 --github-token $GITHUB_TOKEN
 
 # Option 2: Without a GitHub token
-bash run.sh --github-org <your_org> --region us-east-1
+bash run.sh --github-org <your_org> --github-repo <your_repo> --region us-east-1
 ```
+
+- The `--github-org` and `--github-repo` arguments are required to target a specific repository. This ensures the IAM trust policy and stack name are unique per repo.
+- Alternatively, you can use `allowed_repos.txt` to grant access to multiple repos at once. Each line should be in the format `owner/repo`.
+
 
 After running the script, you will see clear instructions for using the IAM Role in your GitHub Actions workflow. You can:
 
@@ -76,8 +80,14 @@ After running the script, you will see clear instructions for using the IAM Role
 
 Replace the ARN above with the value output by the script. Both approaches are always available, regardless of whether you use a GitHub token.
 
-- The script uses the file `allowed_repos.txt` to determine which repositories will be granted access. List each repository (in the format `owner/repo`) on a separate line in that file before running the script.
+- The script uses the file `allowed_repos.txt` to determine which repositories will be granted access. List each repository (in the format `owner/repo`) on a separate line in that file before running the script. If you use `--github-org` and `--github-repo`, only that repo is granted access.
 - There is no `--repos` argument; repository access is controlled via the trust policy and the contents of `allowed_repos.txt`.
+
+**Stack Naming Convention:**
+- The CloudFormation stack name is automatically generated to ensure uniqueness and compliance with AWS naming rules.
+- **Format:** `gha-aws-oidc-<org>-<repo>` (all lowercase, hyphens only, max 64 chars)
+- Example: For `PaulDuvall/gha-aws-oidc-bootstrap`, the stack name will be `gha-aws-oidc-paulduvall-gha-aws-oidc-bootstrap`
+- This stack name is used for all AWS resources deployed for this integration. If you need to customize it, edit the logic in `src/cfn_deploy.py`.
 
 **GitHub Token Requirements:**
 - Use a GitHub Personal Access Token (PAT) with fine-grained permissions.
