@@ -33,7 +33,7 @@ jobs:
 
       - name: Generate CloudFormation template
         run: |
-          bash run.sh --github-org PaulDuvall --region us-east-1 --render-only
+          bash run.sh --github-org PaulDuvall --github-repo gha-aws-oidc-bootstrap --region us-east-1 --render-only
 
       - name: Run all tests
         run: |
