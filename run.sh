@@ -41,6 +41,34 @@ REGION="us-east-1"
 GITHUB_TOKEN=""
 OIDC_PROVIDER_ARN=""
 
+# Function to display usage
+show_usage() {
+  cat << EOF
+Usage: $0 --github-org ORG --github-repo REPO [OPTIONS]
+
+Required Arguments:
+  --github-org ORG        GitHub organization name
+  --github-repo REPO      GitHub repository name
+
+Optional Arguments:
+  --region REGION         AWS region (default: us-east-1)
+  --github-token TOKEN    GitHub token for setting repository variables
+  --oidc-provider-arn ARN Custom OIDC provider ARN
+  --policy-file FILE      Custom IAM policy file
+  --output FILE           Output file for CloudFormation template
+  --test, --tests         Run tests only
+  --render-only           Only render templates, don't deploy
+
+Examples:
+  $0 --github-org myorg --github-repo myrepo
+  $0 --github-org myorg --github-repo myrepo --region us-west-2
+  $0 --github-org myorg --github-repo myrepo --github-token ghp_xxx
+  $0 --test
+  $0 --render-only --github-org myorg --github-repo myrepo
+
+EOF
+}
+
 # Parse arguments
 RUN_TESTS=false
 RENDER_ONLY=false
@@ -67,10 +95,29 @@ while [[ $# -gt 0 ]]; do
       RUN_TESTS=true; shift;;
     --render-only)
       RENDER_ONLY=true; shift;;
+    --help|-h)
+      show_usage; exit 0;;
     *)
-      echo "Unknown argument: $1" >&2; exit 1;;
+      echo "Error: Unknown argument: $1" >&2
+      echo "Use --help for usage information." >&2
+      exit 1;;
   esac
 done
+
+# Validate required arguments (except for test-only mode)
+if [ "$RUN_TESTS" = false ]; then
+  if [[ -z "$GITHUB_ORG" ]]; then
+    echo "Error: --github-org is required" >&2
+    echo "Use --help for usage information." >&2
+    exit 1
+  fi
+  
+  if [[ -z "$GITHUB_REPO" ]]; then
+    echo "Error: --github-repo is required" >&2
+    echo "Use --help for usage information." >&2
+    exit 1
+  fi
+fi
 
 # Set PYTHONPATH to ensure src/ is always importable
 export PYTHONPATH="$(pwd)"
