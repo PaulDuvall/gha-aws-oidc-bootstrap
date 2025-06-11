@@ -133,9 +133,20 @@ This project automatically generates a flexible IAM trust policy for GitHub Acti
 
 ## Customizing AWS Permissions with the `policies/` Directory
 
-- Place one or more IAM policy JSON files (e.g., `lambda.json`, `s3-readonly.json`) in the `policies/` directory.
+- Place one or more IAM policy JSON files in the `policies/` directory.
 - When you run `run.sh`, the script automatically attaches all policy files in `policies/` to the IAM OIDC role.
 - Each policy file should define only AWS permissions (not GitHub repo logic). Repository access is controlled by the trust policy, not these files.
+
+### Available Policy Files
+
+- `cfn.json`: Permissions for AWS CloudFormation operations
+- `iam.json`: Permissions for AWS IAM role and policy management
+- `kms.json`: Permissions for AWS Key Management Service operations
+- `s3.json`: Permissions for AWS S3 bucket operations
+- `sts.json`: Permissions for AWS Security Token Service operations
+- `verifiedpermissions.json`: Permissions for AWS Verified Permissions service
+
+Review each policy file for specific permissions granted. You can enable or disable policies by adding or removing them from the `policies/` directory.
 
 ---
 
