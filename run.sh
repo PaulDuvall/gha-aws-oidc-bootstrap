@@ -144,7 +144,7 @@ fi
 if [[ -n "$POLICIES_DIR" ]]; then
   PYTHON_ARGS="$PYTHON_ARGS --policies-dir $POLICIES_DIR"
 fi
-python3 src/generate_trust_policy.py --repos-file allowed_repos.txt --output cloudformation/generated/trust_policy.json
+python3 src/generate_trust_policy.py --github-org "$GITHUB_ORG" --github-repo "$GITHUB_REPO" --output cloudformation/generated/trust_policy.json
 # Pass owner and repo to template renderer
 python3 src/render_iam_template.py --owner "$GITHUB_ORG" --repo "$GITHUB_REPO" $PYTHON_ARGS
 

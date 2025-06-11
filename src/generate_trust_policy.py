@@ -27,11 +27,21 @@ def get_subs_from_repos(repos_file):
     return subs
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate a GitHub OIDC trust policy JSON from allowed_repos.txt")
-    parser.add_argument("--repos-file", default="allowed_repos.txt", help="File listing repos (one per line)")
+    parser = argparse.ArgumentParser(description="Generate a GitHub OIDC trust policy JSON from allowed_repos.txt or individual repo")
+    parser.add_argument("--repos-file", help="File listing repos (one per line)")
+    parser.add_argument("--github-org", help="GitHub organization name")
+    parser.add_argument("--github-repo", help="GitHub repository name")
     parser.add_argument("--output", default="cloudformation/generated/trust_policy.json", help="Output JSON file")
     args = parser.parse_args()
-    subs = get_subs_from_repos(args.repos_file)
+    
+    # If individual repo is specified, use that; otherwise use repos file
+    if args.github_org and args.github_repo:
+        subs = [f"repo:{args.github_org}/{args.github_repo}:ref:refs/heads/*"]
+    elif args.repos_file:
+        subs = get_subs_from_repos(args.repos_file)
+    else:
+        # Default fallback to allowed_repos.txt if neither is specified
+        subs = get_subs_from_repos("allowed_repos.txt")
     trust_policy = {
         "Version": "2012-10-17",
         "Statement": [
