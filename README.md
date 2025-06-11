@@ -152,6 +152,20 @@ The `policies/` directory contains example IAM policy files that you can customi
    - Conditions (add extra security constraints if needed)
 4. **Run the deployment** - the script will automatically attach all `.json` files (except `-example.json`) to your IAM role
 
+### Using a Custom Policies Directory
+
+You can specify a custom directory containing your policy files:
+
+```bash
+# Use policies from a custom directory
+bash run.sh --github-org myorg --github-repo myrepo --policies-dir /path/to/my/policies
+
+# The custom directory should contain .json files (not ending in -example.json)
+# that follow the same IAM policy format as the examples
+```
+
+If no `--policies-dir` is specified, the script uses the default `policies/` directory in this repository.
+
 ### Example Policy Files Provided
 
 - `s3-example.json`: S3 bucket and object management permissions

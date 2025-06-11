@@ -89,6 +89,7 @@ if __name__ == "__main__":
     parser.add_argument("--github-token", required=False, help="GitHub fine-grained PAT token")
     parser.add_argument("--oidc-provider-arn", required=False, help="OIDC provider ARN for GitHub Actions")
     parser.add_argument("--stack-name", required=False, help="Custom CloudFormation stack name (overrides default naming)")
+    parser.add_argument("--policies-dir", required=False, help="Custom directory containing policy JSON files (default: policies/)")
     args = parser.parse_args()
 
     # Compose unique stack name

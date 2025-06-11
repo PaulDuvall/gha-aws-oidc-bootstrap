@@ -41,6 +41,7 @@ REGION="us-east-1"
 GITHUB_TOKEN=""
 OIDC_PROVIDER_ARN=""
 STACK_NAME=""
+POLICIES_DIR=""
 
 # Function to display usage
 show_usage() {
@@ -56,6 +57,7 @@ Optional Arguments:
   --github-token TOKEN    GitHub token for setting repository variables
   --oidc-provider-arn ARN Custom OIDC provider ARN
   --stack-name NAME       Custom CloudFormation stack name (overrides default naming)
+  --policies-dir DIR      Custom directory containing policy JSON files (default: policies/)
   --policy-file FILE      Custom IAM policy file
   --output FILE           Output file for CloudFormation template
   --test, --tests         Run tests only
@@ -66,6 +68,7 @@ Examples:
   $0 --github-org myorg --github-repo myrepo --region us-west-2
   $0 --github-org myorg --github-repo myrepo --github-token ghp_xxx
   $0 --github-org myorg --github-repo myrepo --stack-name my-custom-stack
+  $0 --github-org myorg --github-repo myrepo --policies-dir /path/to/my/policies
   $0 --test
   $0 --render-only --github-org myorg --github-repo myrepo
 
@@ -92,6 +95,8 @@ while [[ $# -gt 0 ]]; do
       OIDC_PROVIDER_ARN="$2"; shift 2;;
     --stack-name)
       STACK_NAME="$2"; shift 2;;
+    --policies-dir)
+      POLICIES_DIR="$2"; shift 2;;
     --policy-file)
       POLICY_FILE="$2"; shift 2;;
     --output)
@@ -136,6 +141,9 @@ fi
 if [[ -n "$OUTPUT_FILE" ]]; then
   PYTHON_ARGS="$PYTHON_ARGS --output $OUTPUT_FILE"
 fi
+if [[ -n "$POLICIES_DIR" ]]; then
+  PYTHON_ARGS="$PYTHON_ARGS --policies-dir $POLICIES_DIR"
+fi
 python3 src/generate_trust_policy.py --repos-file allowed_repos.txt --output cloudformation/generated/trust_policy.json
 # Pass owner and repo to template renderer
 python3 src/render_iam_template.py --owner "$GITHUB_ORG" --repo "$GITHUB_REPO" $PYTHON_ARGS
@@ -158,6 +166,9 @@ if [[ -n "$OIDC_PROVIDER_ARN" ]]; then
 fi
 if [[ -n "$STACK_NAME" ]]; then
   CFN_ARGS+=(--stack-name "$STACK_NAME")
+fi
+if [[ -n "$POLICIES_DIR" ]]; then
+  CFN_ARGS+=(--policies-dir "$POLICIES_DIR")
 fi
 python3 src/cfn_deploy.py "${CFN_ARGS[@]}"
 

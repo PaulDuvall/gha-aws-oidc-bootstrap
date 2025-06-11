@@ -54,6 +54,7 @@ def main():
         parser.add_argument('--account-id', type=str, default='123456789012', help='AWS Account ID (for output example)')
         parser.add_argument('--oidc-provider-arn', type=str, default='', help='OIDC Provider ARN')
         parser.add_argument('--policy-file', type=str, help='Path to custom policy JSON file')
+        parser.add_argument('--policies-dir', type=str, help='Directory containing policy JSON files (default: policies/)')
         parser.add_argument('--output', type=str, default='cloudformation/generated/iam_role.yaml', help='Output path for rendered template')
         parser.add_argument('--github-token', type=str, help='GitHub PAT for automation (optional)')
         parser.add_argument('--role-name', type=str, default=None, help='IAM Role name (optional override)')
@@ -69,17 +70,27 @@ def main():
 
         # Load policies
         policies = []
-        policies_dir = os.path.join(os.path.dirname(__file__), '../policies')
+        # Use custom policies directory if provided, otherwise default to policies/
+        if args.policies_dir:
+            policies_dir = os.path.abspath(args.policies_dir)
+        else:
+            policies_dir = os.path.join(os.path.dirname(__file__), '../policies')
+        
         print(f"DEBUG: Loading policies from {policies_dir}", flush=True)
-        for policy_file in os.listdir(policies_dir):
-            # Skip example files and non-JSON files
-            if policy_file.endswith('.json') and not policy_file.endswith('-example.json'):
-                with open(os.path.join(policies_dir, policy_file)) as pf:
-                    policy_doc = json.load(pf)
-                policies.append({
-                    'name': policy_file,
-                    'document': policy_doc
-                })
+        
+        # Check if policies directory exists
+        if os.path.exists(policies_dir):
+            for policy_file in os.listdir(policies_dir):
+                # Skip example files and non-JSON files
+                if policy_file.endswith('.json') and not policy_file.endswith('-example.json'):
+                    with open(os.path.join(policies_dir, policy_file)) as pf:
+                        policy_doc = json.load(pf)
+                    policies.append({
+                        'name': policy_file,
+                        'document': policy_doc
+                    })
+        else:
+            print(f"WARNING: Policies directory {policies_dir} does not exist. No policies will be loaded.", flush=True)
 
         # Optionally add a custom policy
         if args.policy_file:

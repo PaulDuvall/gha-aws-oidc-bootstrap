@@ -12,9 +12,30 @@ This directory contains example IAM policy files that grant AWS permissions to y
 ## How It Works
 
 When you run `bash run.sh`, the script:
-1. Scans this `policies/` directory for all `.json` files (excluding `-example.json` files)
+1. Scans the `policies/` directory (or a custom directory specified with `--policies-dir`) for all `.json` files (excluding `-example.json` files)
 2. Attaches each policy to the IAM role created for GitHub Actions OIDC
 3. The policies define what AWS actions your workflows can perform
+
+### Using a Custom Policies Directory
+
+You can store your policy files in a custom directory outside this repository:
+
+```bash
+# Create your custom policies directory
+mkdir -p /path/to/my/policies
+
+# Copy and customize example files
+cp policies/s3-example.json /path/to/my/policies/s3.json
+# Edit /path/to/my/policies/s3.json for your needs
+
+# Run with custom policies directory
+bash run.sh --github-org myorg --github-repo myrepo --policies-dir /path/to/my/policies
+```
+
+This is useful for:
+- Keeping sensitive policy configurations outside the repository
+- Sharing policy files across multiple projects
+- Version controlling policies separately from the bootstrap tool
 
 ## Example Files Included
 

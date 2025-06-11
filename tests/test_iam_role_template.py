@@ -29,16 +29,19 @@ def test_yaml_valid():
 def test_attaches_all_project_policies():
     """
     US-XXX: Test that all .json policy files in the project policies/ directory are attached to the IAM role in the template.
+    Note: Only non-example .json files should be attached (files not ending in -example.json).
     """
     from pathlib import Path
     import yaml
     policies_dir = Path(__file__).parent.parent / "policies"
-    project_policy_files = {p.name for p in policies_dir.iterdir() if p.suffix == ".json"}
+    # Only count non-example JSON files
+    project_policy_files = {p.name for p in policies_dir.iterdir() 
+                           if p.suffix == ".json" and not p.name.endswith("-example.json")}
     template_path = Path(__file__).parent.parent / "cloudformation" / "generated" / "iam_role.yaml"
     with template_path.open() as f:
         data = yaml.safe_load(f)
     role = data["Resources"]["GitHubActionsOIDCRole"]
-    attached_policies = role["Properties"].get("Policies", [])
+    attached_policies = role["Properties"].get("Policies", []) or []
     attached_names = {p.get("PolicyName", "") for p in attached_policies}
     assert project_policy_files.issubset(attached_names), f"Not all project policies attached: {project_policy_files - attached_names}"
 
@@ -46,6 +49,7 @@ def test_policy_documents_are_inlined():
     """
     US-XXX: Failing test (TDD) for inlining policy documents.
     Checks that the PolicyDocument for each attached policy in the template matches the content of the corresponding .json file in policies/.
+    Note: Only non-example .json files should be checked (files not ending in -example.json).
     """
     from pathlib import Path
     import yaml
@@ -55,9 +59,12 @@ def test_policy_documents_are_inlined():
     with template_path.open() as f:
         data = yaml.safe_load(f)
     role = data["Resources"]["GitHubActionsOIDCRole"]
-    attached_policies = role["Properties"].get("Policies", [])
+    attached_policies = role["Properties"].get("Policies", []) or []
     attached_by_name = {p["PolicyName"]: p for p in attached_policies}
+    # Only check non-example JSON files
     for policy_file in policies_dir.glob("*.json"):
+        if policy_file.name.endswith("-example.json"):
+            continue
         name = policy_file.name
         file_content = json.loads(policy_file.read_text())
         template_doc = attached_by_name.get(name, {}).get("PolicyDocument", None)
