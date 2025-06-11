@@ -139,15 +139,26 @@ if __name__ == "__main__":
         import os
         github_token = args.github_token or os.environ.get("GITHUB_TOKEN")
         if github_token:
-            print("Setting GHA_OIDC_ROLE_ARN GitHub Actions variable for all repos in allowed_repos.txt...")
-            subprocess.run([
-                sys.executable, "src/set_github_variable.py",
-                "--github-org", args.github_org,
-                "--github-token", github_token,
-                "--var-name", "GHA_OIDC_ROLE_ARN",
-                "--var-value", role_arn,
-                "--repos-file", "allowed_repos.txt"
-            ], check=False)
+            if args.github_org and args.github_repo:
+                print(f"Setting GHA_OIDC_ROLE_ARN GitHub Actions variable for {args.github_org}/{args.github_repo}...")
+                subprocess.run([
+                    sys.executable, "src/set_github_variable.py",
+                    "--github-org", args.github_org,
+                    "--github-repo", args.github_repo,
+                    "--github-token", github_token,
+                    "--var-name", "GHA_OIDC_ROLE_ARN",
+                    "--var-value", role_arn
+                ], check=False)
+            else:
+                print("Setting GHA_OIDC_ROLE_ARN GitHub Actions variable for all repos in allowed_repos.txt...")
+                subprocess.run([
+                    sys.executable, "src/set_github_variable.py",
+                    "--github-org", args.github_org,
+                    "--github-token", github_token,
+                    "--var-name", "GHA_OIDC_ROLE_ARN",
+                    "--var-value", role_arn,
+                    "--repos-file", "allowed_repos.txt"
+                ], check=False)
         else:
             repo = args.github_repo
             print_manual_github_oidc_instructions(role_arn, args.github_org, repo)

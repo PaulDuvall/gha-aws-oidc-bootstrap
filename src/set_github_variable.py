@@ -37,25 +37,33 @@ def set_repo_variable(org, repo, var_name, var_value, github_token):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Set a GitHub Actions repo variable for all repos in allowed_repos.txt")
+    parser = argparse.ArgumentParser(description="Set a GitHub Actions repo variable for repos from file or individual repo")
     parser.add_argument("--github-org", required=True, help="GitHub organization name")
+    parser.add_argument("--github-repo", help="GitHub repository name (alternative to repos-file)")
     parser.add_argument("--github-token", required=True, help="GitHub Personal Access Token (PAT)")
     parser.add_argument("--var-name", required=True, help="Variable name to set")
     parser.add_argument("--var-value", required=True, help="Variable value to set")
-    parser.add_argument("--repos-file", default="allowed_repos.txt", help="File listing repos (one per line, default: allowed_repos.txt)")
+    parser.add_argument("--repos-file", help="File listing repos (one per line)")
     args = parser.parse_args()
 
-    repos_path = Path(args.repos_file)
-    if not repos_path.exists():
-        print(f"Repos file not found: {repos_path}", file=sys.stderr)
+    # If individual repo is specified, use that; otherwise use repos file
+    if args.github_repo:
+        set_repo_variable(args.github_org, args.github_repo, args.var_name, args.var_value, args.github_token)
+    elif args.repos_file:
+        repos_path = Path(args.repos_file)
+        if not repos_path.exists():
+            print(f"Repos file not found: {repos_path}", file=sys.stderr)
+            sys.exit(1)
+        repos = [line.strip() for line in repos_path.read_text().splitlines() if line.strip() and not line.startswith("#")]
+        for repo in repos:
+            if "/" in repo:
+                org, repo_name = repo.split("/", 1)
+            else:
+                org, repo_name = args.github_org, repo
+            set_repo_variable(org, repo_name, args.var_name, args.var_value, args.github_token)
+    else:
+        print("Error: Either --github-repo or --repos-file must be specified", file=sys.stderr)
         sys.exit(1)
-    repos = [line.strip() for line in repos_path.read_text().splitlines() if line.strip() and not line.startswith("#")]
-    for repo in repos:
-        if "/" in repo:
-            org, repo_name = repo.split("/", 1)
-        else:
-            org, repo_name = args.github_org, repo
-        set_repo_variable(org, repo_name, args.var_name, args.var_value, args.github_token)
 
 if __name__ == "__main__":
     main()
