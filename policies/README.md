@@ -1,60 +1,106 @@
-# IAM Policy Management for OIDC Role
+# IAM Policy Configuration Guide
 
-This directory contains IAM policy JSON files that are automatically attached to the OIDC IAM role for GitHub Actions by the `setup_oidc.sh` script.
+This directory contains example IAM policy files that grant AWS permissions to your GitHub Actions OIDC role. 
 
-**Important:**
-- IAM policies in this directory **must not be scoped to a single repository**. They should only define AWS permissions and resources, not reference or restrict access based on specific GitHub repositories. Repository access is controlled by the role's trust policy, not by these policy files.
+## Important Notes
 
-## Policy Files for Cedar Repository
+1. **These are EXAMPLES only** - The files ending with `-example.json` are templates you should customize for your specific use case.
+2. **Rename before using** - Copy any example file and remove the `-example` suffix (e.g., `s3-example.json` → `s3.json`).
+3. **Customize the resources** - Replace placeholder values like `myproject-*` with your actual resource names.
+4. **Follow least privilege** - Only include the permissions your GitHub Actions workflows actually need.
 
-These policies are tightened to the minimum permissions needed for the Cedar Policy as Code repository:
+## How It Works
 
-- **cfn.json**: CloudFormation permissions for stack deployment and management
-- **verifiedpermissions.json**: AWS Verified Permissions for Cedar policy store management  
-- **s3.json**: S3 permissions for bucket compliance checking and demo scenarios
-- **iam.json**: IAM permissions for CloudFormation stack deployments with IAM resources
-- **kms.json**: KMS permissions for encrypted S3 bucket demos
-- **sts.json**: STS permissions for identity operations and OIDC authentication
+When you run `bash run.sh`, the script:
+1. Scans this `policies/` directory for all `.json` files (excluding `-example.json` files)
+2. Attaches each policy to the IAM role created for GitHub Actions OIDC
+3. The policies define what AWS actions your workflows can perform
 
-## Permissions Analysis
+## Example Files Included
 
-These policies provide the minimum permissions required for:
+### 1. `s3-example.json`
+Basic S3 permissions for managing buckets and objects. Customize by:
+- Changing `myproject-*` to your bucket naming pattern
+- Adjusting actions based on your needs (read-only, write, admin)
 
-1. **Cedar Policy Deployment**:
-   - Deploy CloudFormation stacks for AWS Verified Permissions
-   - Upload and manage Cedar policies in policy stores
-   - Create and manage IAM roles for GitHub Actions
+### 2. `cloudformation-example.json`
+CloudFormation stack management permissions. Customize by:
+- Changing `myproject-*` to your stack naming pattern
+- Adding/removing actions based on your deployment needs
 
-2. **S3 Compliance Testing**:
-   - Check encryption status of existing S3 buckets
-   - Create test buckets for encryption demos
-   - Manage bucket policies and encryption settings
+### 3. `minimal-example.json`
+A minimal policy for read-only S3 access. Shows the bare minimum structure.
 
-3. **Demo and Testing Workflows**:
-   - Deploy CloudFormation templates for S3 encryption examples
-   - Create KMS-encrypted resources for production scenarios
-   - Clean up demo resources after testing
+## Creating Your Own Policies
 
-## Security Improvements
+1. Copy an example file:
+   ```bash
+   cp s3-example.json s3.json
+   ```
 
-**Before**: Policies used wildcard permissions (e.g., `s3:*`, `iam:*`, `verifiedpermissions:*`)
-**After**: Policies limited to specific actions needed by the Cedar repository workflows
+2. Edit the new file to match your needs:
+   - Update resource ARNs to match your AWS resources
+   - Adjust actions to only what's needed
+   - Add conditions for extra security
 
-**Risk Reduction**:
-- ~90% reduction in S3 permissions (13 actions vs all S3 actions)
-- ~85% reduction in IAM permissions (11 actions vs all IAM actions)  
-- ~70% reduction in CloudFormation permissions (13 actions vs all CFN actions)
-- ~60% reduction in Verified Permissions actions (12 actions vs all AVP actions)
+3. Run the deployment:
+   ```bash
+   bash run.sh --github-org yourorg --github-repo yourrepo
+   ```
 
-## Usage
+## Best Practices
 
-1. **Apply changes:**
-   - After updating policy files, re-run `setup_oidc.sh` to attach them to the IAM OIDC role.
+1. **Use specific resource ARNs** instead of wildcards when possible
+2. **Limit actions** to only what your workflows need
+3. **Use conditions** to further restrict access (by IP, time, tags, etc.)
+4. **Test thoroughly** with minimal permissions first, then expand as needed
+5. **Review regularly** and remove unused permissions
 
-2. **Verify permissions:**
-   - Test GitHub Actions workflows to ensure all required permissions are available
-   - Monitor CloudTrail logs for any permission denied errors
+## Common Patterns
 
-## Important
-- **After any policy change, always re-run `setup_oidc.sh` to apply updates.**
-- **These policies are specifically tailored for the Cedar Policy as Code repository.**
+### Deploy to specific S3 bucket:
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": ["s3:PutObject", "s3:PutObjectAcl"],
+    "Resource": "arn:aws:s3:::my-website-bucket/*"
+  }]
+}
+```
+
+### Manage EC2 instances with specific tags:
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": ["ec2:StartInstances", "ec2:StopInstances"],
+    "Resource": "*",
+    "Condition": {
+      "StringEquals": {
+        "ec2:ResourceTag/Environment": "staging"
+      }
+    }
+  }]
+}
+```
+
+### Read secrets from Parameter Store:
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": ["ssm:GetParameter", "ssm:GetParameters"],
+    "Resource": "arn:aws:ssm:*:*:parameter/myapp/*"
+  }]
+}
+```
+
+## Troubleshooting
+
+- If permissions are denied, check CloudTrail logs to see exactly what action/resource was attempted
+- Use `--policy-file` flag with run.sh to test a specific policy file
+- Remember that changes require re-running the deployment script to take effect

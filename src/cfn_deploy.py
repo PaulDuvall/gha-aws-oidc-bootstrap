@@ -88,10 +88,13 @@ if __name__ == "__main__":
     parser.add_argument("--region", default=DEFAULT_REGION, help="AWS region")
     parser.add_argument("--github-token", required=False, help="GitHub fine-grained PAT token")
     parser.add_argument("--oidc-provider-arn", required=False, help="OIDC provider ARN for GitHub Actions")
+    parser.add_argument("--stack-name", required=False, help="Custom CloudFormation stack name (overrides default naming)")
     args = parser.parse_args()
 
     # Compose unique stack name
-    if args.github_org and args.github_repo:
+    if args.stack_name:
+        STACK_NAME = args.stack_name
+    elif args.github_org and args.github_repo:
         STACK_NAME = f"gha-aws-oidc-{args.github_org.lower()}-{args.github_repo.lower()}"
     elif args.github_org:
         STACK_NAME = f"gha-aws-oidc-{args.github_org.lower()}"

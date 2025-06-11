@@ -72,7 +72,8 @@ def main():
         policies_dir = os.path.join(os.path.dirname(__file__), '../policies')
         print(f"DEBUG: Loading policies from {policies_dir}", flush=True)
         for policy_file in os.listdir(policies_dir):
-            if policy_file.endswith('.json'):
+            # Skip example files and non-JSON files
+            if policy_file.endswith('.json') and not policy_file.endswith('-example.json'):
                 with open(os.path.join(policies_dir, policy_file)) as pf:
                     policy_doc = json.load(pf)
                 policies.append({

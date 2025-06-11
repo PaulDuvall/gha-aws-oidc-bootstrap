@@ -87,7 +87,11 @@ Replace the ARN above with the value output by the script. Both approaches are a
 - The CloudFormation stack name is automatically generated to ensure uniqueness and compliance with AWS naming rules.
 - **Format:** `gha-aws-oidc-<org>-<repo>` (all lowercase, hyphens only, max 64 chars)
 - Example: For `PaulDuvall/gha-aws-oidc-bootstrap`, the stack name will be `gha-aws-oidc-paulduvall-gha-aws-oidc-bootstrap`
-- This stack name is used for all AWS resources deployed for this integration. If you need to customize it, edit the logic in `src/cfn_deploy.py`.
+- This stack name is used for all AWS resources deployed for this integration.
+- **Custom Stack Names:** You can override the default naming by providing `--stack-name <name>` when running the script:
+  ```bash
+  bash run.sh --github-org <org> --github-repo <repo> --stack-name my-custom-stack
+  ```
 
 **GitHub Token Requirements:**
 - Use a GitHub Personal Access Token (PAT) with fine-grained permissions.
@@ -133,20 +137,33 @@ This project automatically generates a flexible IAM trust policy for GitHub Acti
 
 ## Customizing AWS Permissions with the `policies/` Directory
 
-- Place one or more IAM policy JSON files in the `policies/` directory.
-- When you run `run.sh`, the script automatically attaches all policy files in `policies/` to the IAM OIDC role.
-- Each policy file should define only AWS permissions (not GitHub repo logic). Repository access is controlled by the trust policy, not these files.
+The `policies/` directory contains example IAM policy files that you can customize for your specific AWS permissions needs.
 
-### Available Policy Files
+### Getting Started with Policies
 
-- `cfn.json`: Permissions for AWS CloudFormation operations
-- `iam.json`: Permissions for AWS IAM role and policy management
-- `kms.json`: Permissions for AWS Key Management Service operations
-- `s3.json`: Permissions for AWS S3 bucket operations
-- `sts.json`: Permissions for AWS Security Token Service operations
-- `verifiedpermissions.json`: Permissions for AWS Verified Permissions service
+1. **Browse the example files** in `policies/` directory (files ending with `-example.json`)
+2. **Copy an example** that matches your use case and remove the `-example` suffix:
+   ```bash
+   cp policies/s3-example.json policies/s3.json
+   ```
+3. **Customize the policy** by updating:
+   - Resource ARNs (replace placeholders like `myproject-*` with your actual resource names)
+   - Actions (only include what your workflows need)
+   - Conditions (add extra security constraints if needed)
+4. **Run the deployment** - the script will automatically attach all `.json` files (except `-example.json`) to your IAM role
 
-Review each policy file for specific permissions granted. You can enable or disable policies by adding or removing them from the `policies/` directory.
+### Example Policy Files Provided
+
+- `s3-example.json`: S3 bucket and object management permissions
+- `cloudformation-example.json`: CloudFormation stack deployment permissions  
+- `minimal-example.json`: Minimal read-only S3 access example
+
+### Important Notes
+
+- The example files are templates - you MUST customize them for your use case
+- Only `.json` files (not ending in `-example.json`) will be attached to the IAM role
+- Follow the principle of least privilege - only grant permissions that are actually needed
+- See `policies/README.md` for detailed configuration instructions and best practices
 
 ---
 

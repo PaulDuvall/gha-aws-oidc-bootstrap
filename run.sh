@@ -40,6 +40,7 @@ GITHUB_REPO=""
 REGION="us-east-1"
 GITHUB_TOKEN=""
 OIDC_PROVIDER_ARN=""
+STACK_NAME=""
 
 # Function to display usage
 show_usage() {
@@ -54,6 +55,7 @@ Optional Arguments:
   --region REGION         AWS region (default: us-east-1)
   --github-token TOKEN    GitHub token for setting repository variables
   --oidc-provider-arn ARN Custom OIDC provider ARN
+  --stack-name NAME       Custom CloudFormation stack name (overrides default naming)
   --policy-file FILE      Custom IAM policy file
   --output FILE           Output file for CloudFormation template
   --test, --tests         Run tests only
@@ -63,6 +65,7 @@ Examples:
   $0 --github-org myorg --github-repo myrepo
   $0 --github-org myorg --github-repo myrepo --region us-west-2
   $0 --github-org myorg --github-repo myrepo --github-token ghp_xxx
+  $0 --github-org myorg --github-repo myrepo --stack-name my-custom-stack
   $0 --test
   $0 --render-only --github-org myorg --github-repo myrepo
 
@@ -87,6 +90,8 @@ while [[ $# -gt 0 ]]; do
       GITHUB_TOKEN="$2"; shift 2;;
     --oidc-provider-arn)
       OIDC_PROVIDER_ARN="$2"; shift 2;;
+    --stack-name)
+      STACK_NAME="$2"; shift 2;;
     --policy-file)
       POLICY_FILE="$2"; shift 2;;
     --output)
@@ -150,6 +155,9 @@ fi
 CFN_ARGS=(--github-org "$GITHUB_ORG" --github-repo "$GITHUB_REPO" --region "$REGION" --github-token "$GITHUB_TOKEN")
 if [[ -n "$OIDC_PROVIDER_ARN" ]]; then
   CFN_ARGS+=(--oidc-provider-arn "$OIDC_PROVIDER_ARN")
+fi
+if [[ -n "$STACK_NAME" ]]; then
+  CFN_ARGS+=(--stack-name "$STACK_NAME")
 fi
 python3 src/cfn_deploy.py "${CFN_ARGS[@]}"
 
