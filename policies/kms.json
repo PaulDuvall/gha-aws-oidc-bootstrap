@@ -1,0 +1,21 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "kms:CreateKey",
+        "kms:DeleteKey",
+        "kms:DescribeKey",
+        "kms:GetKeyPolicy",
+        "kms:PutKeyPolicy",
+        "kms:CreateAlias",
+        "kms:DeleteAlias",
+        "kms:ListAliases",
+        "kms:TagResource",
+        "kms:UntagResource"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
