@@ -6,11 +6,8 @@ import sys
 from pathlib import Path
 import argparse
 import json
-import boto3
 
-def get_aws_account_id():
-    """Resolve the current AWS account ID via STS caller identity."""
-    return boto3.client("sts").get_caller_identity()["Account"]
+OIDC_PROVIDER_PATH = "oidc-provider/token.actions.githubusercontent.com"
 
 def get_subs_from_repos(repos_file):
     subs = []
@@ -36,7 +33,7 @@ def parse_args():
     parser.add_argument("--repos-file", help="File listing repos (one per line)")
     parser.add_argument("--github-org", help="GitHub organization name")
     parser.add_argument("--github-repo", help="GitHub repository name")
-    parser.add_argument("--aws-account-id", help="AWS account ID (defaults to STS caller identity)")
+    parser.add_argument("--aws-account-id", help="Bake a literal AWS account ID into the federated principal (defaults to CloudFormation ${AWS::AccountId} resolved at deploy time)")
     parser.add_argument("--output", default="cloudformation/generated/trust_policy.json", help="Output JSON file")
     return parser.parse_args()
 
@@ -47,14 +44,18 @@ def resolve_subs(args):
         return get_subs_from_repos(args.repos_file)
     return get_subs_from_repos("allowed_repos.txt")
 
+def build_federated_principal(account_id):
+    if account_id:
+        return f"arn:aws:iam::{account_id}:{OIDC_PROVIDER_PATH}"
+    return {"Fn::Sub": f"arn:aws:iam::${{AWS::AccountId}}:{OIDC_PROVIDER_PATH}"}
+
 def build_trust_policy(account_id, subs):
-    federated = f"arn:aws:iam::{account_id}:oidc-provider/token.actions.githubusercontent.com"
     return {
         "Version": "2012-10-17",
         "Statement": [
             {
                 "Effect": "Allow",
-                "Principal": {"Federated": federated},
+                "Principal": {"Federated": build_federated_principal(account_id)},
                 "Action": "sts:AssumeRoleWithWebIdentity",
                 "Condition": {
                     "StringLike": {
@@ -68,8 +69,7 @@ def build_trust_policy(account_id, subs):
 def main():
     args = parse_args()
     subs = resolve_subs(args)
-    account_id = args.aws_account_id or get_aws_account_id()
-    trust_policy = build_trust_policy(account_id, subs)
+    trust_policy = build_trust_policy(args.aws_account_id, subs)
     with open(args.output, "w") as f:
         json.dump(trust_policy, f, indent=2)
     print(f"Generated trust policy for {len(subs)} repos in {args.output}")
