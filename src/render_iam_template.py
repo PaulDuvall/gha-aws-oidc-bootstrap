@@ -15,9 +15,23 @@ def load_policies(policies_dir):
                 })
     return policies
 
+def clean_policy_document(obj):
+    """Clean policy documents by removing null values and metadata sections"""
+    if isinstance(obj, dict):
+        # Remove metadata key entirely as it's not valid in IAM policies
+        cleaned = {k: clean_policy_document(v) for k, v in obj.items() 
+                  if v is not None and k != 'metadata'}
+        return cleaned
+    elif isinstance(obj, list):
+        return [clean_policy_document(item) for item in obj if item is not None]
+    else:
+        return obj
+
 def to_nice_yaml_block(value, indent=12):
+    # Clean policy documents by removing null values and metadata sections
+    cleaned_value = clean_policy_document(value)
     # Dump YAML, remove document separator, and indent every line
-    yaml_str = yaml.dump(value, default_flow_style=False, sort_keys=False)
+    yaml_str = yaml.dump(cleaned_value, default_flow_style=False, sort_keys=False)
     yaml_str = yaml_str.replace('---\n', '')
     pad = ' ' * indent
     return ''.join(pad + line if line.strip() else line for line in yaml_str.splitlines(keepends=True))
